@@ -7,8 +7,8 @@
 ## Author: wolftankk
 ## Version: 3.0 Beta
 
-## OptionalDeps: Ace3, LibSharedMedia-3.0
-## X-Embeds: Ace3, LibSharedMedia-3.0
+## OptionalDeps: Ace3, LibSharedMedia-3.0, LibFuBarPlugin-3.0
+## X-Embeds: Ace3, LibSharedMedia-3.0, LibFuBarPlugin-3.0
 
 ## SavedVariables: CooldownTimersDB
 ## SavedVariablesPerCharacter: CooldownTimersDBPC

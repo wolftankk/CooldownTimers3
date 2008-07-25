@@ -3,5 +3,5 @@
 
 <Script file="Libs\LibStub\LibStub.lua"/>
 <Script file="Libs\LibCandyBar-2.1\LibCandyBar-2.1.lua" />
-
+<Script file="Libs\LibFuBarPlugin-3.0\LibFuBarPlugin-Mod-3.0.lua"/>
 </Ui>

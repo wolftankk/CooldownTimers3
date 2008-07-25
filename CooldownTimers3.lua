@@ -33,6 +33,8 @@ local SM = LibStub("LibSharedMedia-3.0")
 local df = LibStub("LibDeformat-3.0")
 local db;
 
+LibStub("AceAddon-3.0"):EmbedLibrary(CooldownTimers, "LibFuBarPlugin-Mod-3.0", true);
+
 local abs = math.abs;
 local GetTime = GetTime
 local CreateFrame = CreateFrame
@@ -142,6 +144,15 @@ function CooldownTimers:OnInitialize()
 	self.db.RegisterCallback(self, 'OnProfileChanged', "OnProfileChanged");
 	self.db.RegisterCallback(self, 'OnProfileCopied', "OnProfileChanged");
 	self.db.RegisterCallback(self, 'OnProfileReset', "OnProfileChanged");
+
+	if LibStub:GetLibrary("LibFuBarPlugin-Mod-3.0", true) then
+		-- Create the FuBarPlugin bits.
+		self:SetFuBarOption("tooltipType", "GameTooltip")
+		self:SetFuBarOption("hasNoColor", true)
+		self:SetFuBarOption("cannotDetachTooltip", true)
+		self:SetFuBarOption("hideWithoutStandby", true)
+		self:SetFuBarOption("iconPath", [[Interface\Icons\INV_Misc_PocketWatch_02]])	
+	end
 end
 
 local function qpush(self, ...)
@@ -243,6 +254,14 @@ end
 
 function openConfigFrame()
 	LibStub("AceConfigDialog-3.0"):Open("CooldownTimers")
+end
+
+function CooldownTimers:OnUpdateFuBarTooltip()
+	GameTooltip:AddLine("|cffffff00" .. "Click|r to open Config Frame")
+end
+
+function CooldownTimers:OnFuBarClick(button)
+	openConfigFrame();
 end
 
 function CooldownTimers:OnProfileChanged(db, name)
