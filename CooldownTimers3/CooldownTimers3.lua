@@ -1,4 +1,4 @@
---$Id: CooldownTimers3.lua 1508 2008-07-25 08:36:52Z wolftankk $
+--$Id$
 
 --bummed from ckknight's pitbull, with his permission:
 local new, del, newHash
