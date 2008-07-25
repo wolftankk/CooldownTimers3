@@ -116,10 +116,8 @@ local function getOptions()
 							width = "full",
 							get = function() return db.profile.pulseoncooldown end,
 							set = function(_, v) db.profile.pulseoncooldown = v
-								if db.profile.pulseoncooldown and not	CDT:IsEventRegistered("CHAT_MSG_SPELL_FAILED_LOCALPLAYER") then
-									CooldownTimers:RegisterEvent("CHAT_MSG_SPELL_FAILED_LOCALPLAYER", "OnSpellFail")
-								elseif not db.profile.pulsecooldown and	CDT:IsEventRegistered("CHAT_MSG_SPELL_FAILED_LOCALPLAYER") then
-									CDT:UnregisterEvent("CHAT_MSG_SPELL_FAILED_LOCALPLAYER")
+								if not db.profile.pulsecooldown then
+									CDT:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 								end
 							end,
 						},
@@ -450,6 +448,10 @@ local function getOptions()
 						},
 					},
 				},
+				--cdtbar = {
+				--	type = "group",
+				--	name = "",
+				--}
 			},
 		}
 	end

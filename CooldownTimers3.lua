@@ -283,14 +283,17 @@ function CooldownTimers:RequestOffsets(...)
 end
 
 
---- 需调整重写
-function CooldownTimers:OnSpellFail(...)
+function CooldownTimers:OnSpellFail(event, ...)
 	local eventtype,_,_,srcFlag = select(2, ...)
+
 	if (eventtype == "SPELL_CAST_FAILED") then
 	end
-	if (eventtype ~= "SPELL_CAST_FAILED" or not CombatLog_Object_IsA(srcFlags, COMBATLOG_FILTER_MINE)) then
+	
+	if (eventtype ~= "SPELL_CAST_FAILED" or (not CombatLog_Object_IsA(srcFlag, COMBATLOG_FILTER_MINE))) then
 		return
 	end
+
+	local skill, _, reason = select(10, ...)
 
 	if reason ~= SPELL_FAILED_NOT_READY then
 		return
@@ -303,17 +306,15 @@ function CooldownTimers:OnSpellFail(...)
 	if not self.db.class.cooldowns[skill] then
 		return
 	end
-
+	
 	local group = self.db.profile.groups[self.db.class.cooldowns[skill].group]
 	if self.bars[skill] and not self.baralphas[self.bars[skill]] then
 		self.baralphas[self.bars[skill]] = new(1, 0.05);
-
 		--由于ace3 event取消了ScheduleRepeatingEvent
 		--self:ScheduleRepeatingEvent("cdt-flash-"..skill,
 			--function()
-			--	self:FlashBar(skill,
-			--				  self.bars[skill],
-		--					  group.scale or self.db.profile.barOptions.scale)
+			--scale bar when u cast faile
+		self:FlashBar(skill, self.bars[skill], group.scale or self.db.profile.barOptions.scale)
 		--	end,
 		--	0.01
 		--)
