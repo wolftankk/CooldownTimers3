@@ -146,7 +146,6 @@ function CooldownTimers:OnInitialize()
 	self.db.RegisterCallback(self, 'OnProfileReset', "OnProfileChanged");
 
 	if LibStub:GetLibrary("LibFuBarPlugin-Mod-3.0", true) then
-		-- Create the FuBarPlugin bits.
 		self:SetFuBarOption("tooltipType", "GameTooltip")
 		self:SetFuBarOption("hasNoColor", true)
 		self:SetFuBarOption("cannotDetachTooltip", true)
@@ -313,56 +312,69 @@ function CooldownTimers:OnSpellFail(event, ...)
 	end
 
 	local skill, _, reason = select(10, ...)
-
 	if reason ~= SPELL_FAILED_NOT_READY then
 		return
 	end
-
 	if not self.db.profile.autogroup and self.db.class.skillgroups[skill] then
 		skill = self.db.class.skillgroups[skill]
 	end
-
 	if not self.db.class.cooldowns[skill] then
 		return
 	end
-	
 	local group = self.db.profile.groups[self.db.class.cooldowns[skill].group]
 	if self.bars[skill] and not self.baralphas[self.bars[skill]] then
 		self.baralphas[self.bars[skill]] = new(1, 0.05);
-		--由于ace3 event取消了ScheduleRepeatingEvent
-		--self:ScheduleRepeatingEvent("cdt-flash-"..skill,
-			--function()
-			--scale bar when u cast faile
+		
+		
+		--if you cast spell fail, 
 		self:FlashBar(skill, self.bars[skill], group.scale or self.db.profile.barOptions.scale)
-		--	end,
-		--	0.01
-		--)
 	end
 end
 
---需要重写//
-function CooldownTimers:FlashBar(skill, bar, scale)
-	if not self.bars[skill] or not self.baralphas[bar] then
+--[[
+local function CancelEvent(t)
+	if not delayRegistry then
+		delayRegistry = {}
+	end
+	
+	if delayRegistry then
+		local v = delayRegistry[t]
+		if v then
+			if type(t) == "string" then
+				del(delayRegistry[t])
+			end
+			delayRegistry[t] = nil
+			--if not next(delayRegistry) then
+			--end
+			return true
+		end
+	end
+	return false
+end]]
 
-		--ace2event
-		--self:CancelScheduledEvent("cdt-flash-"..skill)
+function CooldownTimers:FlashBar(skill, bar, scale)
+--[[
+	if not self.bars[skill] or not self.baralphas[bar] then
+		--test
+		--CancelEvent("cdt-flash-"..skill)
 		if self.baralphas[bar] then
 			del(self.baralphas[bar])
 			self.baralphas[bar] = nil
 		end
 		return
 	end
-
+	
 	self.baralphas[bar][1] = self.baralphas[bar][1] +  self.baralphas[bar][2]
 	self:SetCandyBarScale(bar, self.baralphas[bar][1] * scale)
 	if self.baralphas[bar][1] >= 1.5 then
 		self.baralphas[bar][2] = -self.baralphas[bar][2]
 	elseif self.baralphas[bar][1] <= 1 then
-		--self:CancelScheduledEvent("cdt-flash-"..skill)
+		--CancelEvent("cdt-flash-"..skill)
 		del(self.baralphas[bar])
 		self.baralphas[bar] = nil
 		self:SetCandyBarScale(bar, scale)
-	end	
+	end
+	]]--
 end
 
 function CooldownTimers:ResetCooldowns()

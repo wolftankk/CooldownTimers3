@@ -127,7 +127,7 @@ local function getOptions()
 							desc = "Fix skills that have groups that no longer exist (moving them to groups that do exist).",
 							order = order(),
 							width = "full",
-							func = function() CooldownTimers:FixGroups() end,
+							func = function() CDT:FixGroups() end,
 						},
 					},
 				},
