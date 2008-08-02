@@ -38,6 +38,7 @@ LibStub("AceAddon-3.0"):EmbedLibrary(CooldownTimers, "LibFuBarPlugin-Mod-3.0", t
 local abs = math.abs;
 local GetTime = GetTime
 local CreateFrame = CreateFrame
+local format = string.format
 
 local defaults = {
 	profile = {
@@ -59,7 +60,8 @@ local defaults = {
 			fade = 1,
 			font = "Friz Quadrata TT",
 			enabled = true,
-			fontcolor = {1.0, 0.9294, 0.7607}
+			fontcolor = {1.0, 0.9294, 0.7607},
+			spellcolor = {1.0, 0.9294, 0.7607},
 		},
 		["barOptions"] = {
 			["colors"] = {
@@ -546,7 +548,7 @@ function CooldownTimers:MakeAnnounce()
 	self.announce.anchor:RegisterForDrag("LeftButton")
 	
 	self.announce.frame = CreateFrame("Frame","CDTAnnounceFrame",UIParent)
-	self.announce.text = self.announce.frame:CreateFontString("CDTAnnounceText","OVERLAY")--, "ZoneTextFont"
+	self.announce.text = self.announce.frame:CreateFontString("CDTAnnounceText", "OVERLAY")
 	self.announce.text:SetFont(SM:Fetch('font',self.db.profile.announce.font), 102, "THICK")
 	self.announce.text:SetTextColor(unpack(self.db.profile.announce.fontcolor))
 	self.announce.text:SetShadowColor( 0, 0, 0, 1)
@@ -556,7 +558,8 @@ function CooldownTimers:MakeAnnounce()
 	self.announce.frame:ClearAllPoints()
 	self.announce.frame:SetAllPoints(self.announce.text)
 	self.announce.frame:SetScale(self.db.profile.announce.scale)
-	self.announce.text:SetText(self.db.profile.announce.announceString)
+	local hex = format("%02x%02x%02x", self.db.profile.announce.spellcolor[1]*255, self.db.profile.announce.spellcolor[2]*255, self.db.profile.announce.spellcolor[3]*255)
+	self.announce.text:SetText(format(self.db.profile.announce.announceString, '|cff'..hex..'%s|r'))
 	self.announce.last = GetTime()
 	self.announce.alpha = 1
 	self.announce.frame:SetScript("OnUpdate",
@@ -1199,7 +1202,9 @@ function CooldownTimers:AnimatePulse(config)
 		end
 		elseif not self.queue.isEmpty then
 			local skill,icon = self.queue:pop();
-			self.announce.text:SetText(string.format(self.db.profile.announce.announceString, skill))
+			local hex = format("%02x%02x%02x", self.db.profile.announce.spellcolor[1]*255, self.db.profile.announce.spellcolor[2]*255, self.db.profile.announce.spellcolor[3]*255)
+			--self:Print(hex)
+			self.announce.text:SetText(format(self.db.profile.announce.announceString, '|cff'..hex..skill..'|r'))
 			self.announce.last = GetTime();
 			self.announce.alpha = 1;
 			self.announce.frame:Show();

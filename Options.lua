@@ -312,6 +312,24 @@ local function getOptions()
 								--must update
 							end
 						},
+						annspellcolor = {
+							type = "color",
+							name = "Announce Spell Color",
+							desc = "Set font color for annnounce's spell",
+							order = order(),
+							hidden = function()
+								if db.profile.announce.enabled then
+									return false
+								else return true
+								end
+							end,
+							get = function() return unpack(db.profile.announce.spellcolor) end,
+							set = function(_, r, g, b)
+								db.profile.announce.spellcolor[1] = r
+								db.profile.announce.spellcolor[2] = g
+								db.profile.announce.spellcolor[3] = b
+							end
+						},
 					},
 				},
 				pulse = {
