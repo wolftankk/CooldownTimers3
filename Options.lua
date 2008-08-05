@@ -356,6 +356,7 @@ local function getOptions()
 									CooldownTimers.pulse.onUpdate = CooldownTimers.pulse.animate;
 									CooldownTimers.pulse.anchor:Hide();
 									CooldownTimers.pulse.scaleanchor:Hide();
+									CooldownTimers.pulse:Hide();
 								end
 							end,
 						},
