@@ -131,6 +131,37 @@ local function getOptions()
 						},
 					},
 				},
+				fubar = {
+					type = "group",
+					name = "FuBar options",
+					desc = "Fubar options",
+					args = {
+						attachMinimap = {
+							name = "Attach to minimap",
+							desc = "Attach to minimap",
+							type = "toggle",
+							get = function(info) return CDT:IsFuBarMinimapAttached() end,
+							set = function(_, v)
+								CDT:ToggleFuBarMinimapAttached()
+								db.profile.fubar.attachMinimap =  CDT:IsFuBarMinimapAttached()
+							end
+						},
+						hideIcon = {--check
+							type = "toggle",
+							name = "Hide minimap/FuBar icon",
+							desc = "Hide minimap/FuBar icon",
+							get = function(info) return db.profile.fubar.hideMinimapButton end,
+							set = function(info, v) 
+								db.profile.fubar.hideMinimapButton = v
+								--if v then
+								--	CDT:Hide()
+								--else
+								--	CDT:Show()
+								--end
+							end,
+						},
+					},
+				},
 				announce = {
 					type = 'group',
 					name = 'Announce Setting',

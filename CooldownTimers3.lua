@@ -1,7 +1,7 @@
 --$Id$
 
 --bummed from ckknight's pitbull, with his permission:
-local new, del, newHash
+local new, del
 do
 	local list = setmetatable({}, {__mode='k'})
 	function new(...)
@@ -101,7 +101,10 @@ local defaults = {
 		  point = "CENTER",
 		  relPoint = "CENTER",
 		},
-	  },		
+	  },
+	  fubar = {
+		  hideMinimapButton = false,
+	  },
 	},
 	char = {
 		["petcooldowns"] = {},
