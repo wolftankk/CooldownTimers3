@@ -27,8 +27,8 @@ end
 --end sleazy code borrowing
 
 --- Register Ace3 Addon
-CooldownTimers = LibStub("AceAddon-3.0"):NewAddon("CooldownTimers", "AceConsole-3.0", "AceEvent-3.0", "AceHook-3.0", "AceComm-3.0", "LibCandyBar-2.1")
-local L = LibStub("AceLocale-3.0"):GetLocale("CooldownTimers");
+CooldownTimers = LibStub("AceAddon-3.0"):NewAddon("CooldownTimers3", "AceConsole-3.0", "AceEvent-3.0", "AceHook-3.0", "AceComm-3.0", "LibCandyBar-2.1")
+local L = LibStub("AceLocale-3.0"):GetLocale("CooldownTimers3");
 local SM = LibStub("LibSharedMedia-3.0")
 local df = LibStub("LibDeformat-3.0")
 local db;
@@ -155,7 +155,7 @@ function CooldownTimers:OnInitialize()
 		self:SetFuBarOption("hasNoColor", true)
 		self:SetFuBarOption("cannotDetachTooltip", true)
 		self:SetFuBarOption("hideWithoutStandby", true)
-		self:SetFuBarOption("iconPath", [[Interface\Icons\INV_Misc_PocketWatch_02]])	
+		self:SetFuBarOption("iconPath", [[Interface\Icons\INV_Misc_PocketWatch_02]])
 	end
 end
 
@@ -233,7 +233,7 @@ function CooldownTimers:OnEnable()
 		self:SecureHook("UseInventoryItem", "useInventory");
 		self:SecureHook("UseItemByName", "useItem");
 	end
-	
+
 	--if not self.db.profile.groups.GroupCooldowns.disabled then
 	--	self:RegisterComm("CDT3");
 	--end
@@ -257,16 +257,15 @@ end
 
 
 function openConfigFrame()
-	LibStub("AceConfigDialog-3.0"):Open("CooldownTimers")
+	LibStub("AceConfigDialog-3.0"):SetDefaultSize("CooldownTimers3", 600, 530)
+	LibStub("AceConfigDialog-3.0"):Open("CooldownTimers3")
 end
 
 function CooldownTimers:OnUpdateFuBarTooltip()
-	GameTooltip:AddLine("|cffffff00" .. "Click|r to open Config Frame")
+	GameTooltip:AddLine("|cffffff00" .. "Right-Click|r to open Config Frame")
 end
 
-function CooldownTimers:OnFuBarClick(button)
-	openConfigFrame();
-end
+CooldownTimers.OpenMenu = openConfigFrame -- for fubar
 
 function CooldownTimers:OnProfileChanged(db, name)
 	--CooldownTimers:ResetMemoizations()
@@ -296,7 +295,7 @@ end
 function CooldownTimers:PLAYER_ENTERING_WORLD()
 	self:ResetCooldowns();
 	if GetNumPartyMembers() > 0 then
-		self:Party(); --
+		self:Party();
 		--self:RequestOffsets();
 	end
 end

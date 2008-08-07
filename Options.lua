@@ -1,6 +1,6 @@
 local SM = LibStub("LibSharedMedia-3.0")
-local L = LibStub("AceLocale-3.0"):GetLocale("CooldownTimers");
-local CDT = LibStub("AceAddon-3.0"):GetAddon("CooldownTimers");
+local L = LibStub("AceLocale-3.0"):GetLocale("CooldownTimers3");
+local CDT = LibStub("AceAddon-3.0"):GetAddon("CooldownTimers3");
 local optGetter, optSetter
 
 local textures = SM:List("statusbar")
@@ -45,9 +45,13 @@ local function AddSpacer()
 	}
 end
 
+local function GetMinimapAttachedStatus()
+	return CDT:IsFuBarMinimapAttached() or CDT.db.profile.fubar.hideMinimapButton
+end
+
 local options
 local function getOptions()
-	local db = CooldownTimers.db
+	local db = CDT.db
 	if not options then
 		options = {
 			type = 'group',
@@ -105,7 +109,7 @@ local function getOptions()
 							width = "full",
 							get = function() return db.profile.autogroup end,
 							set = function(_, v) db.profile.autogroup = v 
-								CooldownTimers:PopulateCooldowns();
+								CDT:PopulateCooldowns();
 							end,
 						},
 						pulseoncooldown = {
@@ -135,11 +139,14 @@ local function getOptions()
 					type = "group",
 					name = "FuBar options",
 					desc = "Fubar options",
+					order = order(),
 					args = {
 						attachMinimap = {
 							name = "Attach to minimap",
 							desc = "Attach to minimap",
 							type = "toggle",
+							order = order(),
+							width = "full",
 							get = function(info) return CDT:IsFuBarMinimapAttached() end,
 							set = function(_, v)
 								CDT:ToggleFuBarMinimapAttached()
@@ -150,15 +157,52 @@ local function getOptions()
 							type = "toggle",
 							name = "Hide minimap/FuBar icon",
 							desc = "Hide minimap/FuBar icon",
+							order = order(),
+							width = "full",
 							get = function(info) return db.profile.fubar.hideMinimapButton end,
 							set = function(info, v) 
 								db.profile.fubar.hideMinimapButton = v
-								--if v then
-								--	CDT:Hide()
-								--else
-								--	CDT:Show()
-								--end
+								if v then
+									CDT:Hide()
+								else
+									CDT:Show()
+								end
 							end,
+						},
+						showIcon = {
+							type = "toggle",
+							name = "Show icon",
+							desc = "Show icon",
+							order = order(),
+							width = "full",
+							get = function(info) return CDT:IsFuBarIconShown() end,
+							set = function(info, v) CDT:ToggleFuBarIconShown() end,
+							disabled = GetMinimapAttachedStatus,
+						},
+						showText = {
+							type = "toggle",
+							name = "Show text",
+							desc = "Show text",
+							order = order(),
+							width = "full",
+							get = function(info) return CDT:IsFuBarTextShown() end,
+							set = function(info, v) CDT:ToggleFuBarTextShown() end,
+							disabled = GetMinimapAttachedStatus,
+						},
+						position = {
+							type = "select",
+							name = "Position",
+							desc = "Position",
+							order = order(),
+							width = "full",
+							values = {LEFT = "Left", CENTER = "Center", RIGHT = "Right"},
+							get = function(info) return CDT:GetPanel() and CDT:GetPanel():GetPluginSide(CDT) end,
+							set = function(info, v)
+								if CDT:GetPanel() and CDT:GetPanel().SetPluginSide then
+									CDT:GetPanel():SetPluginSide(CDT, v)
+								end
+							end,
+							disabled = GetMinimapAttachedStatus,
 						},
 					},
 				},
@@ -179,15 +223,15 @@ local function getOptions()
 							set = function(_, v)
 								db.profile.announce.enabled = v
 								if db.profile.enabled then
-									CooldownTimers.announce.text:Show()
-									CooldownTimers.announce.anchor:Show()
-									CooldownTimers.announce.frame:Show()
-									CooldownTimers.announce.frame:SetAlpha(1)
-									CooldownTimers.announce.alpha = 1
+									CDT.announce.text:Show()
+									CDT.announce.anchor:Show()
+									CDT.announce.frame:Show()
+									CDT.announce.frame:SetAlpha(1)
+									CDT.announce.alpha = 1
 								else
-									CooldownTimers.announce.text:Hide()
-									CooldownTimers.announce.anchor:Hide()
-									CooldownTimers.announce.frame:Hide()
+									CDT.announce.text:Hide()
+									CDT.announce.anchor:Hide()
+									CDT.announce.frame:Hide()
 								end
 							end,
 						},
@@ -209,15 +253,15 @@ local function getOptions()
 								db.profile.announce.locked = v
 
 								if db.profile.announce.locked then
-									CooldownTimers.announce.text:Hide()
-									CooldownTimers.announce.anchor:Hide()
-									CooldownTimers.announce.frame:Hide()
+									CDT.announce.text:Hide()
+									CDT.announce.anchor:Hide()
+									CDT.announce.frame:Hide()
 								else
-									CooldownTimers.announce.text:Show()
-									CooldownTimers.announce.anchor:Show()
-									CooldownTimers.announce.frame:Show()
-									CooldownTimers.announce.frame:SetAlpha(1)
-									CooldownTimers.announce.alpha = 1
+									CDT.announce.text:Show()
+									CDT.announce.anchor:Show()
+									CDT.announce.frame:Show()
+									CDT.announce.frame:SetAlpha(1)
+									CDT.announce.alpha = 1
 								end
 							end,
 						},
@@ -382,12 +426,12 @@ local function getOptions()
 									--CooldownTimers.pulse.onUpdate = CooldownTimers.pulse.configure;
 									--CooldownTimers.pulse.anchor:Show();
 									--CooldownTimers.pulse.scaleanchor:Show();
-									CooldownTimers.pulse:Show();
+									CDT.pulse:Show();
 								else
-									CooldownTimers.pulse.onUpdate = CooldownTimers.pulse.animate;
-									CooldownTimers.pulse.anchor:Hide();
-									CooldownTimers.pulse.scaleanchor:Hide();
-									CooldownTimers.pulse:Hide();
+									CDT.pulse.onUpdate = CooldownTimers.pulse.animate;
+									CDT.pulse.anchor:Hide();
+									CDT.pulse.scaleanchor:Hide();
+									CDT.pulse:Hide();
 								end
 							end,
 						},
@@ -406,14 +450,14 @@ local function getOptions()
 							get = function() return db.profile.pulse.locked end,
 							set = function(_, v) db.profile.pulse.locked = v
 								if db.profile.pulse.locked then
-									CooldownTimers.pulse.onUpdate = CooldownTimers.pulse.animate;
-									CooldownTimers.pulse.anchor:Hide();
-									CooldownTimers.pulse.scaleanchor:Hide();
+									CDT.pulse.onUpdate = CooldownTimers.pulse.animate;
+									CDT.pulse.anchor:Hide();
+									CDT.pulse.scaleanchor:Hide();
 								else
-									CooldownTimers.pulse.onUpdate = CooldownTimers.pulse.configure;
-									CooldownTimers.pulse.anchor:Show();
-									CooldownTimers.pulse.scaleanchor:Show();
-									CooldownTimers.pulse:Show();
+									CDT.pulse.onUpdate = CooldownTimers.pulse.configure;
+									CDT.pulse.anchor:Show();
+									CDT.pulse.scaleanchor:Show();
+									CDT.pulse:Show();
 								end
 							end,
 						},
@@ -511,5 +555,5 @@ local function getOptions()
 end
 
 function CDT:SetupOptions()
-	LibStub("AceConfig-3.0"):RegisterOptionsTable("CooldownTimers", getOptions)
+	LibStub("AceConfig-3.0"):RegisterOptionsTable("CooldownTimers3", getOptions)
 end

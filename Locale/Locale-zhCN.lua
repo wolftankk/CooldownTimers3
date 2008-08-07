@@ -1,4 +1,4 @@
-local L = LibStub("AceLocale-3.0"):NewLocale("CooldownTimers", "zhCN")
+local L = LibStub("AceLocale-3.0"):NewLocale("CooldownTimers3", "zhCN")
 	if not L then return end
 
 	--options
