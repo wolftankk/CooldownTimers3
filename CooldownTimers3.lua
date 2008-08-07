@@ -76,8 +76,8 @@ local defaults = {
 			["scale"] = 1,
 			["up"] = false,
 			["collapse"] = true,
-			["announce"] = true,
-			["texture"] = "Interface\\TargetingFrame\\UI-StatusBar",
+			--["announce"] = true,--?what do?
+			["texture"] = "Smooth",
 		},
 		["maxtime"] = 3600,
 		["mintime"] = 1.5,
@@ -119,7 +119,7 @@ end
 
 function CooldownTimers:OnInitialize()
 	self.VERSION = GetAddOnMetadata("CooldownTimers3", "Version")
-	self.revesion = self.VERSION.." "..(tonumber(("$Rev$"):match("%d+")));
+	self.revesion = self.VERSION.." (r"..(tonumber(("$Rev$"):match("%d+")))..")";
 	self.db = LibStub("AceDB-3.0"):New("CooldownTimersDB", defaults, "Default");
 	local _,playerclass = UnitClass("player");
 	if playerclass == "HUNTER" then
@@ -262,6 +262,7 @@ function openConfigFrame()
 end
 
 function CooldownTimers:OnUpdateFuBarTooltip()
+	GameTooltip:AddLine("|cffffffffCooldownTimers3      "..CooldownTimers.revesion.."|r")
 	GameTooltip:AddLine("|cffffff00" .. "Right-Click|r to open Config Frame")
 end
 
@@ -328,8 +329,7 @@ function CooldownTimers:OnSpellFail(event, ...)
 	local group = self.db.profile.groups[self.db.class.cooldowns[skill].group]
 	if self.bars[skill] and not self.baralphas[self.bars[skill]] then
 		self.baralphas[self.bars[skill]] = new(1, 0.05);
-		
-		
+				
 		--if you cast spell fail, 
 		self:FlashBar(skill, self.bars[skill], group.scale or self.db.profile.barOptions.scale)
 	end
@@ -1095,7 +1095,7 @@ function CooldownTimers:SetUpBar(skillName, skilloptions, duration)
 		if not self:IsCandyBarRegistered(barname) then
 			self:RegisterCandyBar(barname, 0, "-", "-", unpack(colors))
 		end
-		self:SetCandyBarTexture(barname, sm:Fetch("statusbar", skilloptions.texture or group.texture or self.db.profile.barOptions.texture))
+		self:SetCandyBarTexture(barname, SM:Fetch("statusbar", skilloptions.texture or group.texture or self.db.profile.barOptions.texture))
 		self:SetCandyBarPoint(barname, self:GetOffSet(i, group, skilloptions.group))
 		self:SetCandyBarWidth(barname, group.barwidth or self.db.profile.barOptions.barwidth)
 		self:SetCandyBarHeight(barname, group.barheight or self.db.profile.barOptions.barheight)

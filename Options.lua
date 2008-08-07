@@ -3,7 +3,7 @@ local L = LibStub("AceLocale-3.0"):GetLocale("CooldownTimers3");
 local CDT = LibStub("AceAddon-3.0"):GetAddon("CooldownTimers3");
 local optGetter, optSetter
 
-local textures = SM:List("statusbar")
+local statusbars = SM:List("statusbar")
 local fonts = SM:List("font");
 
 --get libSM index val
@@ -63,8 +63,8 @@ local function getOptions()
 				},
 				general = {
 					type = "group",
-					name = "General Setting",
-					desc = "General Setting",
+					name = "General Settings",
+					desc = "General Settings",
 					order = order(),
 					args = {
 						maxtime = {
@@ -208,7 +208,7 @@ local function getOptions()
 				},
 				announce = {
 					type = 'group',
-					name = 'Announce Setting',
+					name = 'Announce Settings',
 					desc = 'Settings for the Announce display',
 					order = order(),
 					args = {
@@ -542,14 +542,184 @@ local function getOptions()
 						},
 					},
 				},
-				--cdtbar = {
-				--	type = "group",
-				--	name = "",
-				--}
+				barsetting = {
+					type = "group",
+					name = "Bar Settings",
+					desc = "Sets the default bar look, used after custom group settings and individual skill settings",
+					order = order(),
+					args = {
+						texture = {
+							type = "select",
+							name = "Bar Texture",
+							desc = "Sets the status bar textur",
+							values = statusbars,
+							order = order(),
+							width = "double",
+							get = function() return GetLSMIndex("statusbar", db.profile.barOptions.texture) end,
+							set = function(_, v) db.profile.barOptions.texture = SM:List("statusbar")[v] end,
+						},
+						colorstart = {
+							name = "Starting Color",
+							desc = "Color starting bar",
+							type = "color",
+							order = order(),
+							get = function() return	unpack(db.profile.barOptions.colors.colors1) end,
+							set = function(_, r, g, b)
+								db.profile.barOptions.colors.colors1[1] = r;
+								db.profile.barOptions.colors.colors1[2] = g;
+								db.profile.barOptions.colors.colors1[3] = b;
+							end,
+						},
+						colorend = {
+							name = "End Color",
+							desc = "Color end bar",
+							type = "color",
+							order = order(),
+							get = function() return unpack(db.profile.barOptions.colors.colors2) end,
+							set = function(_, r, g, b)
+								db.profile.barOptions.colors.colors2[1] = r;
+								db.profile.barOptions.colors.colors2[2] = g;
+								db.profile.barOptions.colors.colors2[3] = b;
+							end,
+						},
+						fade = {
+							type = "input",
+							name = "Fade time",
+							desc = "Sets how long bars take to fade after the bar completes.",
+							usage = "<fadetime> (in seconds)>",
+							order = order(),
+							width = "full",
+							get = function() return tostring(db.profile.barOptions.fade) end,
+							set = function(_, v) db.profile.barOptions.fade = tonumber(v) end,
+						},
+						barwidth = {
+							type = "range",
+							name = "Bar Width",
+							desc = "Set the bar width",
+							min = 32,
+							max = 300,
+							step = 1,
+							order = order(),
+							get = function() return db.profile.barOptions.barwidth end,
+							set = function(_, v) db.profile.barOptions.barwidth = v end,
+						},
+						barheight = {
+							type = 'range',
+							name = 'Bar Height',
+							desc = 'Set the bar height',
+							min = 16,
+							max = 64,
+							step = 1,
+							order = order(),
+							get =function() return db.profile.barOptions.barheight end,
+							set = function(_, v) db.profile.barOptions.barheight = v end,
+						},
+						barscale = {
+							type = "range",
+							name = "Bar Scale",
+							desc = "Set the bar scale",
+							min = 0.5,
+							max = 2.0,
+							step = 0.1,
+							order =order(),
+							get = function() return db.profile.barOptions.scale end,
+							set = function(_, v) db.profile.barOptions.scale = v end,
+						},
+						checkboxspacer = {
+							type = 'description',
+							name = " ",
+							order = order(),
+						},
+						stack = {
+							type = "toggle",
+							name = "Grow Downwards",
+							desc = "Whether the bars will stack up or stack down",
+							order = order(),
+							get = function()
+								return not db.profile.barOptions.up end,
+							set = function(_, v) db.profile.barOptions.up = not v
+							end,
+						},
+						collapse = {
+							type = "toggle",
+							name = "Sort and Collapse Bars",
+							desc = "Whether the bars will be auto sorted and auto collapse.",
+							order = order(),
+							get = function() return db.profile.barOptions.collapse end,
+							set = function(_, v) db.profile.barOptions.collapse = v end,
+						},
+						bargap = {
+							type = "range",
+							name = "Bar Gap",
+							desc = "Sets the default space between bars.",
+							min  = 0,
+							max = 32,
+							step = 1,
+							order = order(),
+							hidden = function() return db.profile.barOptions.collapse end,
+							get = function() return db.profile.barOptions.bargap end,
+							set = function(_, v) db.profile.barOptions.bargap = v end,
+						},
+						columns = {
+							type = "range",
+							name = "Bar Columns",
+							desc = "Sets the number of bar columns",
+							min = 1,
+							max = 5,
+							step = 1,
+							hidden = function() return db.profile.barOptions.collapse end,
+							order = order(),
+							get = function() return db.profile.barOptions.columns end,
+							set = function(_, v) db.profile.barOptions.columns = v end,
+						},
+					},
+				},
+				wfgroups = {
+					type = "group",
+					name = "Group Settings",
+					desc = "Sets the settings for a particula group.",
+					order = order(),
+					args = {
+						newgroup = {
+							type = "input",
+							name = "Create New Group",
+							desc = "Make a new group to show cooldowns in Group names must contain only letters",
+							order = order(),
+							width = "full",
+							get = function() return end,
+							set = function(_, v)
+								db.profile.groups[v] = {};
+								--tinsert(CooldownTimers.Options.args.wfgroups.args.name.validate, s)
+								CDT:MakeAnchor(v, db.profile.groups[v])
+							end,
+							usage = "<group name> \n(Numbers are not allowed, and make sure the group doesn't already exist)",
+						},
+						--[[gname = {
+							type = "input",
+							name = "Group Name",
+							desc = "Name of the group you would like to change settings for",
+							order = order(),
+							get = function() 
+							if not next(options.args.wfgroups.args.gname.validate) then
+								for k, v in pairs(db.profile.groups) do
+									if not v.disabled then
+										tinsert(options.args.wfgroups.args.gname.validate, k);
+									end
+								end
+							end
+								return selectedgroup
+							end,
+							set = function(_, v) selectedgroup = v end,
+							validate = {},
+						},]]
+					},
+				}
 			},
 		}
 	end
 	
+	
+
 	options.args.Profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(CooldownTimers.db)
 	return options
 end
