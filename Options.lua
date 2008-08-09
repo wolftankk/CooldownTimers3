@@ -58,7 +58,6 @@ local function getGroups()
 			end
 		end
 	end
-
 	return cdtgroups
 end
 
@@ -1066,11 +1065,11 @@ local function getOptions()
 				db.profile.groups[v].columns = s
 			end
 		end
-
-		--skill
+	
 	end
 
 	options.args.Profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(CooldownTimers.db)
+	options.args.Profiles.order = order()
 	return options
 end
 
