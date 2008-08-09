@@ -65,8 +65,8 @@ local defaults = {
 		},
 		["barOptions"] = {
 			["colors"] = {
-				["colors1"] = {0.5, 0.5, 0, 1},
-				["colors2"] = {0, 1, 0, 1},
+				["colors1"] = {0.9, 0.9, 0.1},
+				["colors2"] = {0.1, 1, 0.09},
 			},
 			["fade"] = 1,
 			["barwidth"] = 200,
@@ -482,8 +482,6 @@ function CooldownTimers:MakeAnchor(group, info)
 	end
 	self:SetCandyBarGroupGrowth(group, info.up or self.db.profile.barOptions.up)
 end
-
---OpenWaterfall:  USE ACEGUI
 
 function CooldownTimers:MakeAnnounce()
 	self.announce = {}
@@ -1062,10 +1060,21 @@ function CooldownTimers:SetUpBar(skillName, skilloptions, duration)
 	--	self:SendCommMessage("GROUP", "new", skillName, skilloptions.icon, skilloptions.start, duration);
 	--end
 	
-	local r1, g1, b1, a1 = unpack(self.db.profile.barOptions.colors.colors1)
-	local r2, g2, b2, a2 = unpack(self.db.profile.barOptions.colors.colors2)
+	local r1, g1, b1 = unpack(self.db.profile.barOptions.colors.colors1)
+	local r2, g2, b2 = unpack(self.db.profile.barOptions.colors.colors2)
+	
 
-	local colors = skilloptions.colors or group.colors or {r1, g1, b1, r2, g2, b2}
+	local colors;
+	if skilloptions.colors then
+		colors = skilloptions.colors --check
+	elseif group.colors then
+		local gr1, gg1, gb1 = unpack(group.colors.colors1)
+		local gr2, gg2, gb2 = unpack(group.colors.colors2)
+		colors = {gr1, gg1, gb1, gr2, gg2, gb2}
+	else
+		colors = {r1, g1, b1, r2, g2, b2}
+	end
+
 	if self.bars[skillName] then
 		self:StopCandyBar(self.bars[skillName])
 	end

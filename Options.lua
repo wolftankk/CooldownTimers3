@@ -2,9 +2,10 @@ local SM = LibStub("LibSharedMedia-3.0")
 local L = LibStub("AceLocale-3.0"):GetLocale("CooldownTimers3");
 local CDT = LibStub("AceAddon-3.0"):GetAddon("CooldownTimers3");
 local optGetter, optSetter
-
 local statusbars = SM:List("statusbar")
 local fonts = SM:List("font");
+
+local strfind = string.find
 
 --get libSM index val
 local function GetLSMIndex(t, value)
@@ -44,9 +45,21 @@ local function AddSpacer()
 		name = "",
 	}
 end
-
 local function GetMinimapAttachedStatus()
 	return CDT:IsFuBarMinimapAttached() or CDT.db.profile.fubar.hideMinimapButton
+end
+
+local cdtgroups = {}
+local function getGroups()
+	if not next(cdtgroups) then
+		for k, v in pairs(CDT.db.profile.groups) do
+			if not v.diabled then
+				tinsert(cdtgroups, k)
+			end
+		end
+	end
+
+	return cdtgroups
 end
 
 local options
@@ -76,6 +89,7 @@ local function getOptions()
 							get = function() return tostring(db.profile.maxtime) end,
 							set = function(_, v) db.profile.maxtime = tonumber(v) end,
 							usage = "<time>",
+							validate = function(_, v) return not strfind(v, "%D") end,
 						},
 						mintime = {
 							type = "input",
@@ -86,6 +100,7 @@ local function getOptions()
 							get = function() return tostring(db.profile.mintime) end,
 							set = function(_, v) db.profile.mintime = tonumber(v) end,
 							usage = "<time>",
+							validate = function(_, v) return not strfind(v, "%D") end,
 						},
 						barheader_1 = {
 							type = "header",
@@ -587,6 +602,7 @@ local function getOptions()
 							name = "Fade time",
 							desc = "Sets how long bars take to fade after the bar completes.",
 							usage = "<fadetime> (in seconds)>",
+							validate = function(_, v) return strfind(v, "^%d+%.?%d*") end,
 							order = order(),
 							width = "full",
 							get = function() return tostring(db.profile.barOptions.fade) end,
@@ -674,7 +690,7 @@ local function getOptions()
 						},
 					},
 				},
-				wfgroups = {
+				gobalgroups = {
 					type = "group",
 					name = "Group Settings",
 					desc = "Sets the settings for a particula group.",
@@ -689,36 +705,370 @@ local function getOptions()
 							get = function() return end,
 							set = function(_, v)
 								db.profile.groups[v] = {};
-								--tinsert(CooldownTimers.Options.args.wfgroups.args.name.validate, s)
+								tinsert(cdtgroups, v)
 								CDT:MakeAnchor(v, db.profile.groups[v])
+								--must update 
 							end,
 							usage = "<group name> \n(Numbers are not allowed, and make sure the group doesn't already exist)",
 						},
-						--[[gname = {
-							type = "input",
-							name = "Group Name",
-							desc = "Name of the group you would like to change settings for",
+						groupslist = {
+							type = "select",
+							name = "Group List",
+							desc = "Toggle enable/disable the group",
 							order = order(),
-							get = function() 
-							if not next(options.args.wfgroups.args.gname.validate) then
-								for k, v in pairs(db.profile.groups) do
-									if not v.disabled then
-										tinsert(options.args.wfgroups.args.gname.validate, k);
-									end
-								end
-							end
-								return selectedgroup
+							values = getGroups,
+							get = function() return selectedgroups end,
+							set = function(_, v) selectedgroups = v end,
+						},
+						deletegroup = {
+							type = "execute",
+							name = "DELETE GROUP",
+							desc = "Delete you choose group. Default group cant be deleted. It Reload when you deleted a group",
+							order = order(),
+							disabled = function() getGroups(); 
+								return (cdtgroups[selectedgroups] == "") or (cdtgroups[selectedgroups]==nil) or (cdtgroups[selectedgroups] == "CDT")
 							end,
-							set = function(_, v) selectedgroup = v end,
-							validate = {},
-						},]]
+							func = function() 
+								--delete
+								if cdtgroups[selectedgroups] ~= "CDT" and cdtgroups[selectedgroups] ~= "" and cdtgroups[selectedgroups] ~=nil then
+									StaticPopupDialogs["CDT_DELETE_GROUP_CHECK"] = {
+										text = "Are you sure you want to delete group: \n|cff00ff00"..cdtgroups[selectedgroups].."|r. \nReload when you click accept button",
+										button1 = TEXT(ACCEPT),
+										button2 = TEXT(CANCEL),
+										maxLetters = 100,
+										OnAccept = function()
+											if cdtgroups[selectedgroups] == "PetCooldowns" or cdtgroups[selectedgroups] == "ItemCooldowns" then
+												db.profile.groups[cdtgroups[selectedgroups]].disabled = true
+											else
+												db.profile.groups[cdtgroups[selectedgroups]] = nil
+											end
+											CDT.anchors[cdtgroups[selectedgroups]]:Hide()
+											for k, v in pairs (db.class.cooldowns) do
+												if v.group ==  cdtgroups[selectedgroups] then
+													v.group = "CDT"
+												end
+											end
+											for k, v in pairs (db.profile.itemcooldowns) do
+												if v.group ==  cdtgroups[selectedgroups] then
+													v.group = "CDT"
+												end
+											end
+											for k, v in pairs (db.char.petcooldowns) do
+												if v.group ==  cdtgroups[selectedgroups] then
+													v.group = "CDT"
+												end
+											end
+											for k, v in pairs(cdtgroups) do
+												if k == selectedgroups then
+													tremove(cdtgroups, k)
+												end
+											end
+											selectedgroups = ""
+											ReloadUI()--now i cant update gui setting frame. so, i want to reload ui.
+										end,
+										showAlert = true,
+										timeout = 0,
+									}
+									StaticPopup_Show("CDT_DELETE_GROUP_CHECK")
+								end
+							end,
+						},
 					},
-				}
+				},
 			},
 		}
+		
+		--for groupsettings
+		getGroups();
+		for k, v in pairs(cdtgroups) do
+			options.args.gobalgroups.args[v] = {}
+			options.args.gobalgroups.args[v].type = "group";
+			options.args.gobalgroups.args[v].name = v;
+			options.args.gobalgroups.args[v].desc = v.." Settings";
+			options.args.gobalgroups.args[v].order = order();
+			options.args.gobalgroups.args[v].args = {};
+			--lock
+			options.args.gobalgroups.args[v].args.locked = {
+				width = "full",	
+			}
+			options.args.gobalgroups.args[v].args.locked.type = "toggle"
+			options.args.gobalgroups.args[v].args.locked.name = "Locked"
+			options.args.gobalgroups.args[v].args.locked.desc = "Shows/Hides the group anchor"
+			options.args.gobalgroups.args[v].args.locked.order = order()
+			options.args.gobalgroups.args[v].args.locked.get = function() return db.profile.groups[v].locked end
+			options.args.gobalgroups.args[v].args.locked.set = function(_, s) 
+				db.profile.groups[v].locked = s 
+				if db.profile.groups[v].locked then
+					CDT.anchors[v]:Hide()
+				else
+					CDT.anchors[v]:Show()
+				end
+			end
+			
+			--texture
+			options.args.gobalgroups.args[v].args.texture = {
+				type = "select",
+				name = "Bar Texture",
+				desc = "Sets the status bar texture.",
+				order = order(),
+				width = "full",
+				values = statusbars
+			}
+			options.args.gobalgroups.args[v].args.texture.get = function() 
+				if not db.profile.groups[v].texture then
+					return GetLSMIndex("statusbar", db.profile["barOptions"].texture)
+				else
+					return GetLSMIndex("statusbar", db.profile.groups[v].texture)
+				end
+			end
+			options.args.gobalgroups.args[v].args.texture.set = function(_, s)
+				db.profile.groups[v].texture = SM:List("statusbar")[s]
+			end
+			
+			--color
+				--start
+			options.args.gobalgroups.args[v].args.startcolor = {
+				type = "color",
+				name = "Straring Color",
+				desc = "Color starting bar",
+				order = order(),
+			}
+			options.args.gobalgroups.args[v].args.startcolor.get = function()
+				if not db.profile.groups[v].colors then
+					db.profile.groups[v].colors = {}
+					if not db.profile.groups[v].colors.colors1 then
+						db.profile.groups[v].colors.colors1 = {unpack(db.profile.barOptions.colors.colors1)}
+						return unpack(db.profile.groups[v].colors.colors1)
+					else
+						return unpack(db.profile.groups[v].colors.colors1)
+					end
+				else
+					if not db.profile.groups[v].colors.colors1 then
+						db.profile.groups[v].colors.colors1 = {unpack(db.profile.barOptions.colors.colors1)}
+						return unpack(db.profile.groups[v].colors.colors1)
+					else
+						return unpack(db.profile.groups[v].colors.colors1)
+					end
+				end
+			end
+			options.args.gobalgroups.args[v].args.startcolor.set = function(_, r, g, b)
+				db.profile.groups[v].colors.colors1[1] = r
+				db.profile.groups[v].colors.colors1[2] = g
+				db.profile.groups[v].colors.colors1[3] = b
+			end
+
+			--end
+			options.args.gobalgroups.args[v].args.endcolor = {
+				type = "color",
+				name = "Ending Color",
+				desc = "Color ending bar",
+				order = order(),
+			}
+			options.args.gobalgroups.args[v].args.endcolor.get = function()
+				if not db.profile.groups[v].colors then
+					db.profile.groups[v].colors = {}
+					if not db.profile.groups[v].colors.colors2 then
+						db.profile.groups[v].colors.colors2 = {unpack(db.profile.barOptions.colors.colors2)}
+						return unpack(db.profile.groups[v].colors.colors2)
+					else
+						return unpack(db.profile.groups[v].colors.colors2)
+					end
+				else
+					if not db.profile.groups[v].colors.colors2 then
+						db.profile.groups[v].colors.colors2 = {unpack(db.profile.barOptions.colors.colors2)}
+						return unpack(db.profile.groups[v].colors.colors2)
+					else
+						return unpack(db.profile.groups[v].colors.colors2)
+					end
+				end
+			end
+			options.args.gobalgroups.args[v].args.endcolor.set = function(_, r, g, b)
+				db.profile.groups[v].colors.colors2[1] = r
+				db.profile.groups[v].colors.colors2[2] = g
+				db.profile.groups[v].colors.colors2[3] = b
+			end
+			
+			--fade
+			options.args.gobalgroups.args[v].args.fadetime = {
+				type = "input",
+				name = "Fade Time",
+				desc = "Sets how long bars take to fade after the bar completes.",
+				order = order(),
+				width = "full",
+				validate = function(_, s) return strfind(s, "^%d+%.?%d*") end,
+				usage = "<fadetime> (in seconds)",
+			}
+			options.args.gobalgroups.args[v].args.fadetime.get = function()
+				if not db.profile.groups[v].fade then
+					return tostring(db.profile.barOptions.fade)
+				else
+					return tostring(db.profile.groups[v].fade)
+				end
+			end
+			options.args.gobalgroups.args[v].args.fadetime.set = function(_, s)
+				db.profile.groups[v].fade = tonumber(s)
+			end
+
+			--barwidth
+			options.args.gobalgroups.args[v].args.barwidth = {
+				type = "range",
+				name = "Bar Width",
+				desc = "Sets the bar width.",
+				order = order(),
+				min = 32,
+				max = 300,
+				step = 1,
+			}
+			options.args.gobalgroups.args[v].args.barwidth.get = function()
+				if not db.profile.groups[v].barwidth then
+					return db.profile.barOptions.barwidth
+				else
+					return db.profile.groups[v].barwidth
+				end
+			end
+			options.args.gobalgroups.args[v].args.barwidth.set = function(_, s)
+				db.profile.groups[v].barwidth = s
+			end
+
+			--bar height
+			options.args.gobalgroups.args[v].args.barheight = {
+				type = "range",
+				name = "Bar Height",
+				desc = "Sets the bar height",
+				order = order(),
+				min = 16,
+				max = 64,
+				step = 1,
+			}
+			options.args.gobalgroups.args[v].args.barheight.get = function()
+				if not db.profile.groups[v].barheight then
+					return db.profile.barOptions.barheight
+				else
+					return db.profile.groups[v].barheight
+				end
+			end
+			options.args.gobalgroups.args[v].args.barheight.set = function(_,s)
+				db.profile.groups[v].barheight = s
+			end
+
+			--barscale
+			options.args.gobalgroups.args[v].args.barscale = {
+				type = "range",
+				name = "Bar Scale",
+				desc = "Sets the bar scale",
+				min = 0.5,
+				max = 2,
+				step = 0.1,
+				order = order()
+			}
+			options.args.gobalgroups.args[v].args.barscale.get = function()
+				if not db.profile.groups[v].scale then
+					return db.profile.barOptions.scale
+				else
+					return db.profile.groups[v].scale
+				end
+			end
+			options.args.gobalgroups.args[v].args.barscale.set = function(_, s)
+				db.profile.groups[v].scale = s
+			end
+
+			--spacer
+			options.args.gobalgroups.args[v].args.gggspacer = {
+				type = 'description',
+				name = " ",
+				order = order(),
+			}
+
+			--stack
+			options.args.gobalgroups.args[v].args.stack = {
+				type = "toggle",
+				name = "Grow Downwards",
+				desc = "Whether the bars will stack up, or stack down",
+				order  =order(),
+			}
+			options.args.gobalgroups.args[v].args.stack.get = function()
+				if db.profile.groups[v].up ~= nil then
+					return not db.profile.groups[v].up
+				else
+					return not db.profile.barOptions.up
+				end
+			end
+			options.args.gobalgroups.args[v].args.stack.set = function(_, s)
+				db.profile.groups[v].up = not s
+				CDT:SetCandyBarGroupGrowth(v, (not db.profile.groups[v].up))
+			end
+
+			--sort
+			options.args.gobalgroups.args[v].args.barsort = {
+				type = "toggle",
+				name = "Sort and Collapse Bars",
+				desc = "Whether the bars will be automatically sorted and automatically collapse",
+				order = order(),
+			}
+			options.args.gobalgroups.args[v].args.barsort.get = function()
+				if db.profile.groups[v].collapse ~= nil then
+					return db.profile.groups[v].collapse
+				else
+					return db.profile.barOptions.collapse
+				end
+			end
+			options.args.gobalgroups.args[v].args.barsort.set = function(_, s)
+				db.profile.groups[v].collapse = s
+			end
+
+			--spacer
+			options.args.gobalgroups.args[v].args.gapspacer = {
+				type = "description",
+				name = " ",
+				order = order()
+			}
+			--gap
+			options.args.gobalgroups.args[v].args.gap = {
+				type = "range",
+				name = "Bar Gap",
+				desc = "Sets the default space between bars. (Only used when bars do not automatically collapse.)",
+				order = order(),
+				min = 0,
+				max = 32,
+				step = 1,
+			}
+			options.args.gobalgroups.args[v].args.gap.hidden = function() return db.profile.groups[v].collapse end
+			options.args.gobalgroups.args[v].args.gap.get = function()
+				if db.profile.groups[v].gap then
+					return db.profile.groups[v].bargap
+				else
+					return db.profile.barOptions.bargap
+				end
+			end
+			options.args.gobalgroups.args[v].args.gap.set = function(_, s)
+				db.profile.groups[v].bargap = s
+			end
+
+			--columns
+			options.args.gobalgroups.args[v].args.columns = {
+				type = "range",
+				name = "Bar Columns",
+				desc = "Sets the number of bar columns. (Only used when bars do not automatically collapse.)",
+				order = order(),
+				min = 0,
+				max = 5,
+				step = 1
+			}
+			options.args.gobalgroups.args[v].args.columns.hidden = function() return db.profile.groups[v].collapse end
+			options.args.gobalgroups.args[v].args.columns.get = function()
+				if db.profile.groups[v].columns then
+					return db.profile.groups[v].columns
+				else
+					return db.profile.barOptions.columns
+				end
+			end
+			options.args.gobalgroups.args[v].args.columns.set = function(_,s)
+				db.profile.groups[v].columns = s
+			end
+		end
+
+		--skill
 	end
-	
-	
 
 	options.args.Profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(CooldownTimers.db)
 	return options
