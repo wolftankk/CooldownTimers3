@@ -61,6 +61,8 @@ local function getGroups()
 	return cdtgroups
 end
 
+--
+
 local options
 local function getOptions()
 	local db = CDT.db
