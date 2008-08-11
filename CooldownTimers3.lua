@@ -925,7 +925,6 @@ function CooldownTimers:BAG_UPDATE_COOLDOWN()
 end
 
 function CooldownTimers:PopulateCooldowns()
-	--需要重写
 	local i = 1
 	local cooldown = GetSpellName(i, BOOKTYPE_SPELL)
 	local last
@@ -938,8 +937,8 @@ function CooldownTimers:PopulateCooldowns()
 
 			if (CDTTooltipTextRight2:GetText() and (df:Deformat(CDTTooltipTextRight2:GetText(), SPELL_RECAST_TIME_MIN) or df:Deformat(CDTTooltipTextRight2:GetText(), SPELL_RECAST_TIME_SEC)))
 			or (CDTTooltipTextRight3:GetText() and (df:Deformat(CDTTooltipTextRight3:GetText(), SPELL_RECAST_TIME_MIN) or df:Deformat(CDTTooltipTextRight3:GetText(), SPELL_RECAST_TIME_SEC))) then
+					--BUG: auto reset
 				if (not self.db.class.cooldowns[cooldown]) and (self.db.profile.autogroup or not self.db.class.skillgroups[cooldown]) then
-					--auto reset
 					self.db.class.cooldowns[cooldown] = {
 						["start"] = 0,
 						["id"] = i,
@@ -982,9 +981,7 @@ function CooldownTimers:UNIT_PET()
 end
 
 function CooldownTimers:PopulatePetCooldowns()
-	--if not self:IsEventRegistered("PET_BAR_UPDATE_COOLDOWN") then
 	self:RegisterEvent("PET_BAR_UPDATE_COOLDOWN")
-	--end
 	local i = 1
 	local cooldown = GetSpellName(i, BOOKTYPE_PET)
 	local last
@@ -1000,11 +997,6 @@ function CooldownTimers:PopulatePetCooldowns()
 			CDTTooltipTextRight3:SetText("")
 			self.tooltip:SetSpell(i, BOOKTYPE_PET)
 				
-				--[[
-					REWRITE
-				]]--
-			--if ( (CDTTooltipTextRight2:GetText()) or (CDTTooltipTextRight3:GetText()) ) then
-				--self:Print(CDTTooltipTextRight2:GetText());
 			if (CDTTooltipTextRight2:GetText() and (df:Deformat(CDTTooltipTextRight2:GetText(), SPELL_RECAST_TIME_MIN) or df:Deformat(CDTTooltipTextRight2:GetText(), SPELL_RECAST_TIME_SEC)))
 			or (CDTTooltipTextRight3:GetText() and (df:Deformat(CDTTooltipTextRight3:GetText(), SPELL_RECAST_TIME_MIN) or df:Deformat(CDTTooltipTextRight3:GetText(), SPELL_RECAST_TIME_SEC))) then
 

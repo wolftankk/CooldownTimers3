@@ -61,7 +61,15 @@ local function getGroups()
 	return cdtgroups
 end
 
---
+local cdtskills = {}
+local function getSkills()
+	if not next(cdtskills) then
+		for k in pairs(CDT.db.class.cooldowns) do
+			tinsert(cdtskills, k)
+		end
+	end
+	return cdtskills
+end
 
 local options
 local function getOptions()
@@ -776,6 +784,14 @@ local function getOptions()
 						},
 					},
 				},
+				skillgroups = {
+					type = "group",
+					name = "Skill Cooldowns",
+					desc = "Sets the settings for individual cooldowns. Enable/Disable cooldowns here.",
+					order = order(),
+					childGroups = "select",
+					args = {},
+				}
 			},
 		}
 		
@@ -1067,7 +1083,60 @@ local function getOptions()
 				db.profile.groups[v].columns = s
 			end
 		end
-	
+
+		--for skillgroups
+		getSkills();
+		for k, v in pairs(cdtskills) do
+			options.args.skillgroups.args["cdtskill_"..k] = {
+				type = "group",
+				order = order(),
+				args = {}
+			}
+			options.args.skillgroups.args["cdtskill_"..k].name = v
+			options.args.skillgroups.args["cdtskill_"..k].desc = v.." Settings"
+
+			options.args.skillgroups.args["cdtskill_"..k].args.enabled = {
+				type = "toggle",
+				width = "full",
+				order = order(),
+				name = "Enabled",
+				desc = "Enables and disables tracking of individual skill cooldowns.",
+			}
+			options.args.skillgroups.args["cdtskill_"..k].args.enabled.get = function() return not db.class.cooldowns[v].disabled end;
+			options.args.skillgroups.args["cdtskill_"..k].args.enabled.set = function(_, s) db.class.cooldowns[v].disabled = not s end;
+
+			--select
+			options.args.skillgroups.args["cdtskill_"..k].args.group = {
+				type = "select",
+				name = "Group",
+				desc = "Cooldown group to put selected skill in",
+				order = order(),
+				width = "full",
+				values = cdtgroups,
+			}
+			options.args.skillgroups.args["cdtskill_"..k].args.group.get = function() for i, k in pairs(cdtgroups) do if db.class.cooldowns[v].group == k then skillIndex = i end end
+			return skillIndex end
+			options.args.skillgroups.args["cdtskill_"..k].args.group.set = function(_, s) db.class.cooldowns[v].group = cdtgroups[s] end
+
+			--texture
+			options.args.skillgroups.args["cdtskill_"..k].args.texture = {
+				type = "select",
+				name = "Bar Texture",
+				desc = "Sets the status bar texture.",
+				order = order(),
+				values = statusbars,
+				width = "full",
+			}
+			options.args.skillgroups.args["cdtskill_"..k].args.texture.get = function() 
+				if db.class.cooldowns[v].texture then
+					return GetLSMIndex("statusbar", db.class.cooldowns[v].texture)
+				else
+					return GetLSMIndex("statusbar", db.profile["barOptions"].texture)
+				end
+			end
+			options.args.skillgroups.args["cdtskill_"..k].args.texture.set = function(_, s)
+				db.class.cooldowns[v].texture = statusbars[s] end
+		end
 	end
 
 	options.args.Profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(CooldownTimers.db)
