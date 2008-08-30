@@ -937,8 +937,9 @@ function CooldownTimers:PopulateCooldowns()
 
 			if (CDTTooltipTextRight2:GetText() and (df:Deformat(CDTTooltipTextRight2:GetText(), SPELL_RECAST_TIME_MIN) or df:Deformat(CDTTooltipTextRight2:GetText(), SPELL_RECAST_TIME_SEC)))
 			or (CDTTooltipTextRight3:GetText() and (df:Deformat(CDTTooltipTextRight3:GetText(), SPELL_RECAST_TIME_MIN) or df:Deformat(CDTTooltipTextRight3:GetText(), SPELL_RECAST_TIME_SEC))) then
-					--BUG: auto reset
-				if (not self.db.class.cooldowns[cooldown]) and (self.db.profile.autogroup or not self.db.class.skillgroups[cooldown]) then
+				if not self.db.class.cooldowns[cooldown] and (self.db.profile.autogroup or not self.db.class.skillgroups[cooldown]) then
+				
+				--		self:Print("auto Reset");
 					self.db.class.cooldowns[cooldown] = {
 						["start"] = 0,
 						["id"] = i,

@@ -71,6 +71,29 @@ local function getSkills()
 	return cdtskills
 end
 
+local condensegroup = {}
+local function getcondensegroup()
+	local db = CDT.db
+	CDT.groups = {}
+	for _,s in pairs(db.class.skillgroups) do
+		if not CDT.groups[s] then
+			CDT.groups[s] = {}
+		end
+	end
+	for _,s in pairs(db.profile.itemgroups) do
+		if not CDT.groups[s] then
+			CDT.groups[s] = {}
+		end
+	end
+	if not next(condensegroup) then
+		for l in pairs(CDT.groups) do
+			tinsert(condensegroup, l)
+		end
+	end
+
+	return condensegroup
+end
+
 local options
 local function getOptions()
 	local db = CDT.db
@@ -791,7 +814,15 @@ local function getOptions()
 					order = order(),
 					childGroups = "select",
 					args = {},
-				}
+				},
+				itemgroups = {
+					type = "group",
+					name = "Item Cooldowns",
+					desc = "Sets the settings for individual cooldowns. Enable/Disable cooldowns here.",
+					order = order(),
+					childGroups = "select",
+					args = {},
+				},
 			},
 		}
 		
@@ -1086,6 +1117,7 @@ local function getOptions()
 
 		--for skillgroups
 		getSkills();
+			getcondensegroup();
 		for k, v in pairs(cdtskills) do
 			options.args.skillgroups.args["cdtskill_"..k] = {
 				type = "group",
@@ -1136,7 +1168,64 @@ local function getOptions()
 			end
 			options.args.skillgroups.args["cdtskill_"..k].args.texture.set = function(_, s)
 				db.class.cooldowns[v].texture = statusbars[s] end
+
+			--colors
+
+			--fadetime
+			options.args.skillgroups.args["cdtskill_"..k].args.fadetime = {
+				type = "input",
+				name = "Cutom Fade Time",
+				desc = "Sets how long bars take to fade after the bar completes.",
+				order = order(),
+				width = "full",
+				validate = function(_, s) return strfind(s, "^%d+%.?%d*") end,
+				usage = "<fadetime> (in seconds)",
+			}
+			options.args.skillgroups.args["cdtskill_"..k].args.fadetime.get = function() if db.class.cooldowns[v].fade == nil then
+					return tostring(db.profile.barOptions.fade)
+				else
+					return tostring(db.class.cooldowns[v].fade)
+				end
+			end
+
+			options.args.skillgroups.args["cdtskill_"..k].args.fadetime.set = function(_, s)
+				db.class.cooldowns[v].fade = tonumber(s); end
+
+			--new condense
+			options.args.skillgroups.args["cdtskill_"..k].args.newcondense = {
+				type = "input",
+				name = "New Condense Group",
+				desc = "Create a new Condense Group with\nthis as a member",
+				order = order(),
+				width = "full",
+				usage = "<group name> (Numbers are not allowed, and make sure the group doesn't already exist)",
+			}
+			options.args.skillgroups.args["cdtskill_"..k].args.newcondense.get = function() return end
+			options.args.skillgroups.args["cdtskill_"..k].args.newcondense.set = function(_, s)
+				db.class.cooldowns[v] = nil;
+				db.class.skillgroups[v] = s;
+				--CDT:UpdateData();
+			end
+
+			--condensegroup
+			options.args.skillgroups.args["cdtskill_"..k].args.condensegroup = {
+				type = "select",
+				name = "Condense Group",
+				desc = "Select a group to condense the selected skill into\n(e.g. for shared cooldowns)",
+				order = order(),
+				width = "full",
+				values = condensegroup
+			}
+			options.args.skillgroups.args["cdtskill_"..k].args.condensegroup.get = function() 
+				return	end
+			options.args.skillgroups.args["cdtskill_"..k].args.condensegroup.set = function(_, s)
+				db.class.cooldowns[v] = nil;
+				db.class.skillgroups[v] = s;
+				--CDT:UpdateData();
+			end
 		end
+
+		--for item
 	end
 
 	options.args.Profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(CooldownTimers.db)
