@@ -71,6 +71,16 @@ local function getSkills()
 	return cdtskills
 end
 
+local cdtitems = {}
+local function getItems()
+	if not next(cdtitems) then
+		for k in pairs (CDT.db.profile.itemcooldowns) do
+			tinsert (cdtitems, k)
+		end
+	end
+	return cdtitems
+end
+
 local condensegroup = {}
 local function getcondensegroup()
 	local db = CDT.db
@@ -1226,6 +1236,33 @@ local function getOptions()
 		end
 
 		--for item
+		getItems()
+		for i, v in pairs(cdtitems) do
+			options.args.itemgroups.args["cdtitem_"..i] = {
+				type = "group",
+				order = order(),
+				args = {},
+			}
+			options.args.itemgroups.args["cdtitem"..i].name = v
+			options.args.itemgroups.args["cdtitem"..i].desc = v.." Settings";
+
+			--enable
+			options.args.itemgroups.args["cdtitem"..i].args.enable = {
+				type = "toggle",
+				name = "Enable",
+				desc = "Enables and disables tracking of individual item cooldowns.",
+				order = order(),
+				width = "full",
+			}
+			options.args.itemgroups.args["cdtitem"..i].args.enable.get = function() if v ~= nil and db.profile.itemcooldowns[v] ~= nil then
+				return (not db.profile.itemcooldowns[v].disabled)
+				end
+			end
+			options.args.itemgroups.args["cdtitem"..i].args.enable.set = function(_, s)
+				db.profile.itemcooldowns[v].disabled = not s
+			end
+		end
+
 	end
 
 	options.args.Profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(CooldownTimers.db)
