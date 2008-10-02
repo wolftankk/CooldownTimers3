@@ -27,7 +27,7 @@ end
 --end sleazy code borrowing
 
 --- Register Ace3 Addon
-CooldownTimers = LibStub("AceAddon-3.0"):NewAddon("CooldownTimers3", "AceConsole-3.0", "AceEvent-3.0", "AceHook-3.0", "AceComm-3.0", "LibCandyBar-2.1")
+CooldownTimers = LibStub("AceAddon-3.0"):NewAddon("CooldownTimers3", "AceConsole-3.0", "AceEvent-3.0", "AceHook-3.0", "AceComm-3.0", "LibCandyBar-2.1", "AceTimer-3.0")
 local L = LibStub("AceLocale-3.0"):GetLocale("CooldownTimers3");
 local SM = LibStub("LibSharedMedia-3.0")
 local df = LibStub("LibDeformat-3.0")
@@ -329,38 +329,15 @@ function CooldownTimers:OnSpellFail(event, ...)
 	local group = self.db.profile.groups[self.db.class.cooldowns[skill].group]
 	if self.bars[skill] and not self.baralphas[self.bars[skill]] then
 		self.baralphas[self.bars[skill]] = new(1, 0.05);
-				
-		--if you cast spell fail, 
-		self:FlashBar(skill, self.bars[skill], group.scale or self.db.profile.barOptions.scale)
+		self:ScheduleRepeatingTimer(function()
+			self:FlashBar(skill, self.bars[skill], group.scale or self.db.profile.barOptions.scale)
+			end, 0.001);
 	end
 end
 
---[[
-local function CancelEvent(t)
-	if not delayRegistry then
-		delayRegistry = {}
-	end
-	
-	if delayRegistry then
-		local v = delayRegistry[t]
-		if v then
-			if type(t) == "string" then
-				del(delayRegistry[t])
-			end
-			delayRegistry[t] = nil
-			--if not next(delayRegistry) then
-			--end
-			return true
-		end
-	end
-	return false
-end]]
-
 function CooldownTimers:FlashBar(skill, bar, scale)
---[[
 	if not self.bars[skill] or not self.baralphas[bar] then
-		--test
-		--CancelEvent("cdt-flash-"..skill)
+		self:CancelAllTimers()
 		if self.baralphas[bar] then
 			del(self.baralphas[bar])
 			self.baralphas[bar] = nil
@@ -373,12 +350,11 @@ function CooldownTimers:FlashBar(skill, bar, scale)
 	if self.baralphas[bar][1] >= 1.5 then
 		self.baralphas[bar][2] = -self.baralphas[bar][2]
 	elseif self.baralphas[bar][1] <= 1 then
-		--CancelEvent("cdt-flash-"..skill)
+		self:CancelAllTimers()
 		del(self.baralphas[bar])
 		self.baralphas[bar] = nil
 		self:SetCandyBarScale(bar, scale)
 	end
-	]]--
 end
 
 function CooldownTimers:ResetCooldowns()

@@ -1236,7 +1236,7 @@ local function getOptions()
 		end
 
 		--for item
-		getItems()
+		--[[getItems()
 		for i, v in pairs(cdtitems) do
 			options.args.itemgroups.args["cdtitem_"..i] = {
 				type = "group",
@@ -1254,14 +1254,15 @@ local function getOptions()
 				order = order(),
 				width = "full",
 			}
-			options.args.itemgroups.args["cdtitem"..i].args.enable.get = function() if v ~= nil and db.profile.itemcooldowns[v] ~= nil then
-				return (not db.profile.itemcooldowns[v].disabled)
+			options.args.itemgroups.args["cdtitem"..i].args.enable.get = function() 
+				if v ~= nil and db.profile.itemcooldowns[v] ~= nil then
+					return (not db.profile.itemcooldowns[v].disabled)
 				end
 			end
 			options.args.itemgroups.args["cdtitem"..i].args.enable.set = function(_, s)
 				db.profile.itemcooldowns[v].disabled = not s
 			end
-		end
+		end]]
 
 	end
 
