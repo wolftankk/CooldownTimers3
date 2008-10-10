@@ -331,7 +331,7 @@ function CooldownTimers:OnSpellFail(event, ...)
 		self.baralphas[self.bars[skill]] = new(1, 0.05);
 		self:ScheduleRepeatingTimer(function()
 			self:FlashBar(skill, self.bars[skill], group.scale or self.db.profile.barOptions.scale)
-			end, 0.001);
+			end, 0.0001);
 	end
 end
 
