@@ -33,7 +33,7 @@ local SM = LibStub("LibSharedMedia-3.0")
 local df = LibStub("LibDeformat-3.0")
 local db;
 
-LibStub("AceAddon-3.0"):EmbedLibrary(CooldownTimers, "LibFuBarPlugin-Mod-3.0", true);
+LibStub("AceAddon-3.0"):EmbedLibrary(CooldownTimers, "LibFuBarPlugin-3.0", true);
 
 local abs = math.abs;
 local GetTime = GetTime
@@ -150,12 +150,12 @@ function CooldownTimers:OnInitialize()
 	self.db.RegisterCallback(self, 'OnProfileCopied', "OnProfileChanged");
 	self.db.RegisterCallback(self, 'OnProfileReset', "OnProfileChanged");
 
-	if LibStub:GetLibrary("LibFuBarPlugin-Mod-3.0", true) then
+	if LibStub:GetLibrary("LibFuBarPlugin-3.0", true) then
 		self:SetFuBarOption("tooltipType", "GameTooltip")
 		self:SetFuBarOption("hasNoColor", true)
 		self:SetFuBarOption("cannotDetachTooltip", true)
 		self:SetFuBarOption("hideWithoutStandby", true)
-		self:SetFuBarOption("iconPath", [[Interface\Icons\INV_Misc_PocketWatch_02]])
+		self:SetFuBarOption("iconPath", "Interface\\Icons\\INV_Misc_PocketWatch_02")
 	end
 end
 
@@ -189,7 +189,7 @@ function CooldownTimers:OnEnable()
 		self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED", "OnSpellFail");
 	end
 		
-	self:RegisterEvent("PARTY_MEMBERS_CHANGED", "Party");--需测试
+	self:RegisterEvent("PARTY_MEMBERS_CHANGED", "Party");
 	self:RegisterEvent("UNIT_PET");
 
 	self.tooltip = CreateFrame("GameTooltip", "CDTTooltip", UIParent, "GameTooltipTemplate");
