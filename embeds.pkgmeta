@@ -1,5 +1,0 @@
-externals:
-	libs/LibStub: http://svn.wowace.com/wowace/trunk/LibStub
-	libs/Ace3: http://svn.wowace.com/wowace/trunk/Ace3
-	libs/LibSharedMedia-3.0: http://svn.wowace.com/wowace/trunk/LibSharedMedia-3.0
-	LibFuBarPlugin-3.0: http://svn.wowace.com/wowace/trunk/ibFuBarPlugin-3.0
