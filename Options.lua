@@ -694,8 +694,9 @@ local function getOptions()
 							desc = "Whether the bars will stack up or stack down",
 							order = order(),
 							get = function()
-								return not db.profile.barOptions.up end,
-							set = function(_, v) db.profile.barOptions.up = not v
+								return db.profile.barOptions.up end,
+							set = function(_, v) 
+								db.profile.barOptions.up = v
 							end,
 						},
 						collapse = {
