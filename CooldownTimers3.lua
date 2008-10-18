@@ -122,25 +122,38 @@ function CooldownTimers:OnInitialize()
 	self.revesion = self.VERSION.." (r"..(tonumber(("$Rev$"):match("%d+")))..")";
 	self.db = LibStub("AceDB-3.0"):New("CooldownTimersDB", defaults, "Default");
 	local _,playerclass = UnitClass("player");
+
 	if playerclass == "HUNTER" then
-		self.db.class["cooldowns"] = {}
-		self.db.class["skillgroups"] = {
-			[getspellname(14311)] = L["Traps"],
-			[getspellname(13809)] = L["Traps"],
-			[getspellname(27023)] = L["Traps"],
-			[getspellname(34600)] = L["Traps"],
-			[getspellname(27025)] = L["Traps"],
-		}
+		if not (self.db.class["cooldowns"]) then
+			self.db.class["cooldowns"] = {}
+		end
+		if not (self.db.class["skillgroups"]) then
+			self.db.class["skillgroups"] = {
+				[getspellname(14311)] = L["Traps"],
+				[getspellname(13809)] = L["Traps"],
+				[getspellname(27023)] = L["Traps"],
+				[getspellname(34600)] = L["Traps"],
+				[getspellname(27025)] = L["Traps"],
+			}
+		end
 	elseif playerclass == "SHAMAN" then
-		self.db.class["cooldowns"] = {}
-		self.db.class["skillgroups"] = {
-			[getspellname(25464)] = L["Shocks"],
-			[getspellname(25457)] = L["Shocks"],
-			[getspellname(25454)] = L["Shocks"],
-		}
+		if not(self.db.class["cooldowns"]) then
+			self.db.class["cooldowns"] = {}
+		end
+		if not(self.db.class["skillgroups"]) then
+			self.db.class["skillgroups"] = {
+				[getspellname(25464)] = L["Shocks"],
+				[getspellname(25457)] = L["Shocks"],
+				[getspellname(25454)] = L["Shocks"],
+			}
+		end
 	else
-		self.db.class["cooldowns"] = {}
-		self.db.class["skillgroups"] = {}
+		if not(self.db.class["cooldowns"]) then
+			self.db.class["cooldowns"] = {}
+		end
+		if not(self.db.class["skillgroups"]) then
+			self.db.class["skillgroups"] = {}
+		end
 	end
 
 	self:SetupOptions()
@@ -193,7 +206,7 @@ function CooldownTimers:OnEnable()
 	self:RegisterEvent("UNIT_PET");
 
 	self.tooltip = CreateFrame("GameTooltip", "CDTTooltip", UIParent, "GameTooltipTemplate");
-	self.tooltip:SetScript("OnLoad", function() this:SetOwner(UIparent, "ANCHOR_NONE") end);
+	--self.tooltip:SetScript("OnLoad", function(self) self:SetOwner(UIParent, "ANCHOR_NONE") end);
 	self.tooltip:SetOwner(UIParent, "ANCHOR_NONE");
 	self.anchors = {}
 	
@@ -360,6 +373,7 @@ end
 function CooldownTimers:ResetCooldowns()
 	self:KillAllBars()
 	for k, v in pairs(self.db.class.cooldowns) do
+		--print (k)
 		v.start = 0;
 	end
 	for k, v in pairs(self.db.char.petcooldowns) do
@@ -374,7 +388,6 @@ function CooldownTimers:ResetCooldowns()
 end
 
 function CooldownTimers:MakeAnchor(group, info)
-	--self:Print(group)
 	if info.disabled then
 		return
 	end
@@ -796,7 +809,7 @@ function CooldownTimers:SPELL_UPDATE_COOLDOWN()
 									cooldowns[index].name = k;
 									cooldowns[index].spell = v;
 								end
-						else--if false;
+						else
 							self:SetUpBar(k, v, duration)
 						end
 				end
@@ -910,20 +923,18 @@ function CooldownTimers:PopulateCooldowns()
 			CDTTooltipTextRight2:SetText("")
 			CDTTooltipTextRight3:SetText("")
 			self.tooltip:SetSpell(i, BOOKTYPE_SPELL)
-
+			
 			if (CDTTooltipTextRight2:GetText() and (df:Deformat(CDTTooltipTextRight2:GetText(), SPELL_RECAST_TIME_MIN) or df:Deformat(CDTTooltipTextRight2:GetText(), SPELL_RECAST_TIME_SEC)))
 			or (CDTTooltipTextRight3:GetText() and (df:Deformat(CDTTooltipTextRight3:GetText(), SPELL_RECAST_TIME_MIN) or df:Deformat(CDTTooltipTextRight3:GetText(), SPELL_RECAST_TIME_SEC))) then
-				if not self.db.class.cooldowns[cooldown] and (self.db.profile.autogroup or not self.db.class.skillgroups[cooldown]) then
-				
-				--		self:Print("auto Reset");
+				if ((not self.db.class.cooldowns[cooldown]) and (self.db.profile.autogroup or not self.db.class.skillgroups[cooldown])) then
 					self.db.class.cooldowns[cooldown] = {
 						["start"] = 0,
 						["id"] = i,
 						["icon"] = GetSpellTexture(i, BOOKTYPE_SPELL),
 						["group"] = "CDT",
 					}
-				elseif not self.db.profile.autogroup and self.db.class.skillgroups[cooldown] and not self.db.class.cooldowns[self.db.class.skillgroups[cooldown] ] then
-					self.db.class.cooldowns[self.db.class.skillgroups[cooldown] ] = {
+				elseif not self.db.profile.autogroup and self.db.class.skillgroups[cooldown] and not self.db.class.cooldowns[self.db.class.skillgroups[cooldown]] then
+					self.db.class.cooldowns[self.db.class.skillgroups[cooldown]] = {
 						["start"] = 0,
 						["id"] = i,
 						["icon"] = GetSpellTexture(i, BOOKTYPE_SPELL),
