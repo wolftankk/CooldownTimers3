@@ -147,6 +147,17 @@ function CooldownTimers:OnInitialize()
 				[getspellname(25454)] = L["Shocks"],
 			}
 		end
+	elseif playerclass == "PALADIN" then
+		if not(self.db.class["cooldowns"]) then
+			self.db.class["cooldowns"] = {}
+		end
+		if not(self.db.class["skillgroups"]) then
+			self.db.class["skillgroups"] = {
+				[getspellname(20271)] = "Judgement",--light
+				[getspellname(53408)] = "Judgement",--wisdom
+				[getspellname(53407)] = "Judgement",--justice
+			}
+		end
 	else
 		if not(self.db.class["cooldowns"]) then
 			self.db.class["cooldowns"] = {}
