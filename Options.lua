@@ -694,9 +694,9 @@ local function getOptions()
 							desc = "Whether the bars will stack up or stack down",
 							order = order(),
 							get = function()
-								return db.profile.barOptions.up end,
+								return not db.profile.barOptions.up end,
 							set = function(_, v) 
-								db.profile.barOptions.up = v
+								db.profile.barOptions.up = not v
 							end,
 						},
 						collapse = {
@@ -1041,7 +1041,7 @@ local function getOptions()
 			--stack
 			options.args.gobalgroups.args[v].args.stack = {
 				type = "toggle",
-				name = "Grow Downwards",
+				name = "Grown Upwards",
 				desc = "Whether the bars will stack up, or stack down",
 				order  =order(),
 			}
