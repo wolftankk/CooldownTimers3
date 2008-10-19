@@ -924,7 +924,6 @@ function CooldownTimers:BAG_UPDATE_COOLDOWN()
 		del(cooldowns);
 end
 
---spell "Holy Shock" for Holy Paladins in "Skill Cooldowns"
 function CooldownTimers:PopulateCooldowns()
 	local i = 1
 	local cooldown = GetSpellName(i, BOOKTYPE_SPELL)
@@ -935,11 +934,13 @@ function CooldownTimers:PopulateCooldowns()
 			CDTTooltipTextRight2:SetText("")
 			CDTTooltipTextRight3:SetText("")
 			CDTTooltipTextRight4:SetText("")
+			CDTTooltipTextRight5:SetText("")
 			self.tooltip:SetSpell(i, BOOKTYPE_SPELL)
 			
 			if (CDTTooltipTextRight2:GetText() and (df:Deformat(CDTTooltipTextRight2:GetText(), SPELL_RECAST_TIME_MIN) or df:Deformat(CDTTooltipTextRight2:GetText(), SPELL_RECAST_TIME_SEC)))
 			or (CDTTooltipTextRight3:GetText() and (df:Deformat(CDTTooltipTextRight3:GetText(), SPELL_RECAST_TIME_MIN) or df:Deformat(CDTTooltipTextRight3:GetText(), SPELL_RECAST_TIME_SEC)))
-			or (CDTTooltipTextRight4:GetText() and (df:Deformat(CDTTooltipTextRight4:GetText(), SPELL_RECAST_TIME_MIN) or df:Deformat(CDTTooltipTextRight4:GetText(), SPELL_RECAST_TIME_SEC))) then
+			or (CDTTooltipTextRight4:GetText() and (df:Deformat(CDTTooltipTextRight4:GetText(), SPELL_RECAST_TIME_MIN) or df:Deformat(CDTTooltipTextRight4:GetText(), SPELL_RECAST_TIME_SEC))) 
+			or (CDTTooltipTextRight5:GetText() and (df:Deformat(CDTTooltipTextRight5:GetText(), SPELL_RECAST_TIME_MIN) or df:Deformat(CDTTooltipTextRight5:GetText(), SPELL_RECAST_TIME_SEC))) then
 				if ((not self.db.class.cooldowns[cooldown]) and (self.db.profile.autogroup or not self.db.class.skillgroups[cooldown])) then
 					self.db.class.cooldowns[cooldown] = {
 						["start"] = 0,
