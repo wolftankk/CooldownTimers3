@@ -175,6 +175,7 @@ L["Shift+Click this to lock it in position."] = true
 L["CDT Pulse Size Anchor"] = true
 L["Drag this to resize the the pulse icon."] = true
 
+L["Judgement"] = true
 
 --hunter group skills
 L["Traps"] = true

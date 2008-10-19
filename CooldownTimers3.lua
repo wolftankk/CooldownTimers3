@@ -153,9 +153,9 @@ function CooldownTimers:OnInitialize()
 		end
 		if not(self.db.class["skillgroups"]) then
 			self.db.class["skillgroups"] = {
-				[getspellname(20271)] = "Judgement",--light
-				[getspellname(53408)] = "Judgement",--wisdom
-				[getspellname(53407)] = "Judgement",--justice
+				[getspellname(20271)] = L["Judgement"],--light
+				[getspellname(53408)] = L["Judgement"],--wisdom
+				[getspellname(53407)] = L["Judgement"],--justice
 			}
 		end
 	else
