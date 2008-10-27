@@ -76,7 +76,6 @@ local defaults = {
 			["scale"] = 1,
 			["up"] = false,
 			["collapse"] = true,
-			--["announce"] = true,--?what do?
 			["texture"] = "Smooth",
 		},
 		["maxtime"] = 3600,
@@ -247,6 +246,7 @@ function CooldownTimers:OnEnable()
 
 	if not self.announce then
 		self:MakeAnnounce()
+		self:UpdateAnnounce()
 	end
 
 	db = self.db.profile;
@@ -293,9 +293,7 @@ end
 CooldownTimers.OpenMenu = openConfigFrame -- for fubar
 
 function CooldownTimers:OnProfileChanged(db, name)
-	--CooldownTimers:ResetMemoizations()
-	--CooldownTimers:SetAnchors(true)
-	--CooldownTimers:UpdateDisplay()
+	--update test and font
 end
 
 function CooldownTimers:useAction(slot)
@@ -353,15 +351,15 @@ function CooldownTimers:OnSpellFail(event, ...)
 	local group = self.db.profile.groups[self.db.class.cooldowns[skill].group]
 	if self.bars[skill] and not self.baralphas[self.bars[skill]] then
 		self.baralphas[self.bars[skill]] = new(1, 0.05);
-		self:ScheduleRepeatingTimer(function()
+		CDT_FlashBar = self:ScheduleRepeatingTimer(function()
 			self:FlashBar(skill, self.bars[skill], group.scale or self.db.profile.barOptions.scale)
-			end, 0.0001);
+			end, 1/100000000);
 	end
 end
 
 function CooldownTimers:FlashBar(skill, bar, scale)
 	if not self.bars[skill] or not self.baralphas[bar] then
-		self:CancelAllTimers()
+		self:CancelTimer("CDT_FlashBar", true)
 		if self.baralphas[bar] then
 			del(self.baralphas[bar])
 			self.baralphas[bar] = nil
@@ -374,7 +372,7 @@ function CooldownTimers:FlashBar(skill, bar, scale)
 	if self.baralphas[bar][1] >= 1.5 then
 		self.baralphas[bar][2] = -self.baralphas[bar][2]
 	elseif self.baralphas[bar][1] <= 1 then
-		self:CancelAllTimers()
+		self:CancelTimer("CDT_FlashBar", true)
 		del(self.baralphas[bar])
 		self.baralphas[bar] = nil
 		self:SetCandyBarScale(bar, scale)
@@ -471,7 +469,6 @@ function CooldownTimers:MakeAnchor(group, info)
 	else
 		self.anchors[group]:Show()
 	end
-	--self:Print(group)
 
 	self:RegisterCandyBarGroup(group)
 
@@ -481,6 +478,38 @@ function CooldownTimers:MakeAnchor(group, info)
 		self:SetCandyBarGroupPoint(group, "TOP", self.anchors[group]:GetName(), "BOTTOM", 0, 0)
 	end
 	self:SetCandyBarGroupGrowth(group, info.up or self.db.profile.barOptions.up)
+end
+
+--update from options
+function CooldownTimers:UpdateAnnounce()
+	if self.announce.frame then
+		--[[
+			bug: Now frame cant scale.
+		]]
+		self.announce.frame:SetScale(self.db.profile.announce.scale)
+		if self.announce.text then
+			self.announce.text:SetFont(SM:Fetch('font',self.db.profile.announce.font), 102, "THICK")
+			self.announce.text:SetTextColor(unpack(self.db.profile.announce.fontcolor))
+			local hex = format("%02x%02x%02x", self.db.profile.announce.spellcolor[1]*255, self.db.profile.announce.spellcolor[2]*255, self.db.profile.announce.spellcolor[3]*255)
+			self.announce.text:SetText(format(self.db.profile.announce.announceString, '|cff'..hex..'%s|r'))
+			self.announce.last = GetTime()
+			self.announce.alpha = 1
+			self.announce.frame:SetScript("OnUpdate",
+				function()
+					if self.announce.anchor:IsShown() then
+						return
+					end
+					if (GetTime() - self.announce.last) > self.db.profile.announce.fade then
+						self.announce.alpha = self.announce.alpha - 0.1
+					end
+					self.announce.frame:SetAlpha(self.announce.alpha)
+					if self.announce.alpha <= 0 then
+						self.announce.frame:Hide()
+					end
+				end
+			)
+		end
+	end
 end
 
 function CooldownTimers:MakeAnnounce()
@@ -549,6 +578,7 @@ function CooldownTimers:MakeAnnounce()
 	
 	self.announce.frame = CreateFrame("Frame","CDTAnnounceFrame",UIParent)
 	self.announce.text = self.announce.frame:CreateFontString("CDTAnnounceText", "OVERLAY")
+	--update font
 	self.announce.text:SetFont(SM:Fetch('font',self.db.profile.announce.font), 102, "THICK")
 	self.announce.text:SetTextColor(unpack(self.db.profile.announce.fontcolor))
 	self.announce.text:SetShadowColor( 0, 0, 0, 1)

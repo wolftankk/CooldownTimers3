@@ -2,9 +2,6 @@ local SM = LibStub("LibSharedMedia-3.0")
 local L = LibStub("AceLocale-3.0"):GetLocale("CooldownTimers3");
 local CDT = LibStub("AceAddon-3.0"):GetAddon("CooldownTimers3");
 local optGetter, optSetter
-local statusbars = SM:List("statusbar")
-local fonts = SM:List("font");
-
 local strfind = string.find
 
 --get libSM index val
@@ -96,8 +93,9 @@ local function getcondensegroup()
 		end
 	end
 	if not next(condensegroup) then
-		for l in pairs(CDT.groups) do
-			tinsert(condensegroup, l)
+		for k in pairs(CDT.groups) do
+			--print(k);
+			tinsert(condensegroup, k)
 		end
 	end
 
@@ -348,7 +346,7 @@ local function getOptions()
 							get = function() return tostring(db.profile.announce.announceString) end,
 							set = function(info, v)
 								db.profile.announce.announceString = tostring(v)
-								--must resh setting
+								CDT:UpdateAnnounce()
 							end,
 						},
 						annheader_1 = {
@@ -380,7 +378,6 @@ local function getOptions()
 							get = function() return db.profile.announce.fade end,
 							set = function(_, v)
 								db.profile.announce.fade = v
-								--Update
 							end,
 						},
 						annscale = {
@@ -400,7 +397,7 @@ local function getOptions()
 							step = 0.1,
 							get = function() return db.profile.announce.scale end,
 							set = function(_, v) db.profile.announce.scale = v 
-								--update
+								CDT:UpdateAnnounce()
 							end,
 						},
 						annfont = {
@@ -414,10 +411,11 @@ local function getOptions()
 								else return true
 								end
 							end,
-							values = fonts,
-							get = function() return GetLSMIndex("font", db.profile.announce.font) end,
-							set = function(_, v) db.profile.announce.font = SM:List("font")[v] 
-								--update
+							dialogControl = "LSM30_Font";
+							values = AceGUIWidgetLSMlists.font,
+							get = function() return db.profile.announce.font end,
+							set = function(_, v) db.profile.announce.font = v
+								CDT:UpdateAnnounce()
 							end,
 						},
 						space_2 = {
@@ -441,7 +439,7 @@ local function getOptions()
 								db.profile.announce.fontcolor[1] = r
 								db.profile.announce.fontcolor[2] = g
 								db.profile.announce.fontcolor[3] = b
-								--must update
+								CDT:UpdateAnnounce()
 							end
 						},
 						annspellcolor = {
@@ -460,6 +458,7 @@ local function getOptions()
 								db.profile.announce.spellcolor[1] = r
 								db.profile.announce.spellcolor[2] = g
 								db.profile.announce.spellcolor[3] = b
+								CDT:UpdateAnnounce()
 							end
 						},
 					},
@@ -609,11 +608,14 @@ local function getOptions()
 							type = "select",
 							name = "Bar Texture",
 							desc = "Sets the status bar textur",
-							values = statusbars,
+							dialogControl = "LSM30_Statusbar";
+							values = AceGUIWidgetLSMlists.statusbar,
 							order = order(),
 							width = "double",
-							get = function() return GetLSMIndex("statusbar", db.profile.barOptions.texture) end,
-							set = function(_, v) db.profile.barOptions.texture = SM:List("statusbar")[v] end,
+							get = function() return db.profile.barOptions.texture end,
+							set = function(_, v)
+								db.profile.barOptions.texture = v
+							end,
 						},
 						colorstart = {
 							name = "Starting Color",
@@ -871,17 +873,18 @@ local function getOptions()
 				desc = "Sets the status bar texture.",
 				order = order(),
 				width = "full",
-				values = statusbars
+				dialogControl = "LSM30_Statusbar";
+				values = AceGUIWidgetLSMlists.statusbar
 			}
 			options.args.gobalgroups.args[v].args.texture.get = function() 
 				if not db.profile.groups[v].texture then
-					return GetLSMIndex("statusbar", db.profile["barOptions"].texture)
+					return db.profile["barOptions"].texture
 				else
-					return GetLSMIndex("statusbar", db.profile.groups[v].texture)
+					return db.profile.groups[v].texture
 				end
 			end
 			options.args.gobalgroups.args[v].args.texture.set = function(_, s)
-				db.profile.groups[v].texture = SM:List("statusbar")[s]
+				db.profile.groups[v].texture = s
 			end
 			
 			--color
@@ -1041,7 +1044,7 @@ local function getOptions()
 			--stack
 			options.args.gobalgroups.args[v].args.stack = {
 				type = "toggle",
-				name = "Grown Upwards",
+				name = "Grown Downwards",
 				desc = "Whether the bars will stack up, or stack down",
 				order  =order(),
 			}
@@ -1167,18 +1170,19 @@ local function getOptions()
 				name = "Bar Texture",
 				desc = "Sets the status bar texture.",
 				order = order(),
-				values = statusbars,
+				dialogControl = "LSM30_Statusbar";
+				values = AceGUIWidgetLSMlists.statusbar,
 				width = "full",
 			}
 			options.args.skillgroups.args["cdtskill_"..k].args.texture.get = function() 
 				if db.class.cooldowns[v].texture then
-					return GetLSMIndex("statusbar", db.class.cooldowns[v].texture)
+					return db.class.cooldowns[v].texture
 				else
-					return GetLSMIndex("statusbar", db.profile["barOptions"].texture)
+					return db.profile["barOptions"].texture
 				end
 			end
 			options.args.skillgroups.args["cdtskill_"..k].args.texture.set = function(_, s)
-				db.class.cooldowns[v].texture = statusbars[s] end
+				db.class.cooldowns[v].texture = s end
 
 			--colors
 
@@ -1227,11 +1231,16 @@ local function getOptions()
 				width = "full",
 				values = condensegroup
 			}
-			options.args.skillgroups.args["cdtskill_"..k].args.condensegroup.get = function() 
-				return	end
+			options.args.skillgroups.args["cdtskill_"..k].args.condensegroup.get = function()
+				for i, k in pairs(condensegroup) do
+					if db.class.skillgroups[v] == k then
+						condenseIndex = i
+					end
+				end
+				return condenseIndex end
 			options.args.skillgroups.args["cdtskill_"..k].args.condensegroup.set = function(_, s)
 				db.class.cooldowns[v] = nil;
-				db.class.skillgroups[v] = s;
+				db.class.skillgroups[v] = condensegroup[s];
 				--CDT:UpdateData();
 			end
 		end
