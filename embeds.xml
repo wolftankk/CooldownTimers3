@@ -21,4 +21,5 @@
 <Script file="Libs\LibSharedMedia-3.0\LibSharedMedia-3.0.lua"/>
 <Script file="Libs\LibCandyBar-2.1\LibCandyBar-2.1.lua" />
 <Script file="Libs\LibFuBarPlugin-3.0\LibFuBarPlugin-3.0.lua"/>
+<Include file="Libs\AceGUI-3.0-SharedMediaWidgets\widget.xml" />
 </Ui>
