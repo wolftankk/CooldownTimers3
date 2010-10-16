@@ -1,39 +1,42 @@
---$Id$
+local _, cdt = ...;
+cdt = LibStub(cdt, "CooldownTimers3", "AceEvent-3.0", "AceComm-3.0", "AceConsole-3.0");
+cdt.version = GetAddOnMetadata("CooldownTimers3", "version");
+cdt.reversion = tonumber(("$Revision: 39$"):match("%d+"));
+local L = LibStub("AceLocale-3.0"):GetLocale("CooldownTimers3");
+local candy = LibStub("LibCandyBar-3.0");
+local SM = LibStub("LibSharedMedia-3.0")
+local LDB = LibStub("LibDataBroker-1.1", true);
+local icon = LibStub("LibDBIcon-1.0", true);
+local db;
 
 --bummed from ckknight's pitbull, with his permission:
 local new, del
 do
-	local list = setmetatable({}, {__mode='k'})
-	function new(...)
-		local t = next(list)
-		if t then
-			list[t] = nil
-			for i = 1, select('#',...) do
-				t[i] = select(i,...)
-			end
-			return t
-		else
-			return {...}
-		end
-	end
-	function del(t)
-		for k in pairs(t) do
-			t[k] = nil
-		end
-		list[t] = true
-		return nil
-	end
+    local list = setmetatable({}, {__mode='k'})
+    function new(...)
+        local t = next(list)
+        if t then
+            list[t] = nil
+            for i = 1, select('#',...) do
+                    t[i] = select(i,...)
+            end
+            return t
+        else
+            return {...}
+        end
+    end
+    function del(t)
+        for k in pairs(t) do
+            t[k] = nil
+        end
+        list[t] = true
+        return nil
+    end
 end
 --end sleazy code borrowing
 
---- Register Ace3 Addon
-CooldownTimers = LibStub("AceAddon-3.0"):NewAddon("CooldownTimers3", "AceConsole-3.0", "AceEvent-3.0", "AceHook-3.0", "AceComm-3.0", "LibCandyBar-2.1", "AceTimer-3.0")
-local L = LibStub("AceLocale-3.0"):GetLocale("CooldownTimers3");
-local SM = LibStub("LibSharedMedia-3.0")
-local df = LibStub("LibDeformat-3.0")
-local db;
-
-LibStub("AceAddon-3.0"):EmbedLibrary(CooldownTimers, "LibFuBarPlugin-3.0", true);
+local _, pclass = UnitClass("player");
+cdt.pclass = pclass;
 
 local abs = math.abs;
 local GetTime = GetTime
@@ -41,88 +44,81 @@ local CreateFrame = CreateFrame
 local format = string.format
 
 local defaults = {
-	profile = {
-		["groups"] = {
-			["CDT"] = {
-			},
-			["ItemCooldowns"] = {
-			},
-			["GroupCooldowns"] = {
-			},
-		},
-		["announce"] = {
-			x = 0,
-			y = 0,
-			point = "CENTER",
-			relPoint = "CENTER",
-			announceString = L["%s ready!"],
-			scale = 1,
-			fade = 1,
-			font = "Friz Quadrata TT",
-			enabled = true,
-			fontcolor = {1.0, 0.9294, 0.7607},
-			spellcolor = {1.0, 0.9294, 0.7607},
-		},
-		["barOptions"] = {
-			["colors"] = {
-				["colors1"] = {0.9, 0.9, 0.1},
-				["colors2"] = {0.1, 1, 0.09},
-			},
-			["fade"] = 1,
-			["barwidth"] = 200,
-			["barheight"] = 16,
-			["bargap"] = 0,
-			["columns"] = 1,
-			["scale"] = 1,
-			["up"] = false,
-			["collapse"] = true,
-			["texture"] = "Smooth",
-		},
-		["maxtime"] = 3600,
-		["mintime"] = 1.5,
-		["itemgroups"] = {},
-		["itemcooldowns"] = {},
-	  groupcooldowns = {
-	  },
-	  pulseoncooldown = true,
-	  sound = true,
-	  autogroup = true,
-	  ["pulse"] = {
-		enabled = true,
-		size = 100,
-		alpha = 0.5,
-		fadein = 0.25,
-		fadeout = 1,
-		min = 0.75,
-		loc = {
-		  x = 0,
-		  y = 0,
-		  point = "CENTER",
-		  relPoint = "CENTER",
-		},
-	  },
-	  fubar = {
-		  hideMinimapButton = false,
-	  },
-	},
-	char = {
-		["petcooldowns"] = {},
-	},
-	class = {}
+    profile = {
+        ["groups"] = {
+                ["CDT"] = {
+                },
+                ["ItemCooldowns"] = {
+                },
+                ["GroupCooldowns"] = {
+                },
+        },
+        ["announce"] = {
+                x = 0,
+                y = 0,
+                point = "CENTER",
+                relPoint = "CENTER",
+                announceString = L["%s ready!"],
+                scale = 1,
+                fade = 1,
+                font = "Friz Quadrata TT",
+                enabled = true,
+                fontcolor = {1.0, 0.9294, 0.7607},
+                spellcolor = {1.0, 0.9294, 0.7607},
+        },
+        ["barOptions"] = {
+                ["colors"] = {
+                        ["colors1"] = {0.9, 0.9, 0.1},
+                        ["colors2"] = {0.1, 1, 0.09},
+                },
+                ["fade"] = 1,
+                ["barwidth"] = 200,
+                ["barheight"] = 16,
+                ["bargap"] = 0,
+                ["columns"] = 1,
+                ["scale"] = 1,
+                ["up"] = false,
+                ["collapse"] = true,
+                ["texture"] = "Smooth",
+        },
+        ["maxtime"] = 3600,
+        ["mintime"] = 1.5,
+        ["itemgroups"] = {},
+        ["itemcooldowns"] = {},
+        groupcooldowns = {
+        },
+        pulseoncooldown = true,
+        sound = true,
+        autogroup = true,
+        ["pulse"] = {
+              enabled = true,
+              size = 100,
+              alpha = 0.5,
+              fadein = 0.25,
+              fadeout = 1,
+              min = 0.75,
+              loc = {
+                x = 0,
+                y = 0,
+                point = "CENTER",
+                relPoint = "CENTER",
+              },
+        },
+        minimap = {
+          hide = false,
+        }
+    },
+    char = {
+            ["petcooldowns"] = {},
+    },
+    class = {}
 }
 
-local function getspellname(id)
-	local name = GetSpellInfo(id)
-	return name
-end
-
 function CooldownTimers:OnInitialize()
-	self.VERSION = GetAddOnMetadata("CooldownTimers3", "Version")
-	self.revesion = self.VERSION.." (r"..(tonumber(("$Rev$"):match("%d+")))..")";
 	self.db = LibStub("AceDB-3.0"):New("CooldownTimersDB", defaults, "Default");
-	local _,playerclass = UnitClass("player");
-
-	if playerclass == "HUNTER" then
+        
+        --[[
+	if pclass == "HUNTER" then
 		if not (self.db.class["cooldowns"]) then
 			self.db.class["cooldowns"] = {}
 		end
@@ -135,7 +131,7 @@ function CooldownTimers:OnInitialize()
 				[getspellname(27025)] = L["Traps"],
 			}
 		end
-	elseif playerclass == "SHAMAN" then
+	elseif pclass == "SHAMAN" then
 		if not(self.db.class["cooldowns"]) then
 			self.db.class["cooldowns"] = {}
 		end
@@ -165,21 +161,15 @@ function CooldownTimers:OnInitialize()
 			self.db.class["skillgroups"] = {}
 		end
 	end
+        ]]
 
-	self:SetupOptions()
-	self:RegisterChatCommand("cdt", openConfigFrame);
+	--self:SetupOptions()
+	--self:RegisterChatCommand("cdt", openConfigFrame);
 	
 	self.db.RegisterCallback(self, 'OnProfileChanged', "OnProfileChanged");
 	self.db.RegisterCallback(self, 'OnProfileCopied', "OnProfileChanged");
 	self.db.RegisterCallback(self, 'OnProfileReset', "OnProfileChanged");
 
-	if LibStub:GetLibrary("LibFuBarPlugin-3.0", true) then
-		self:SetFuBarOption("tooltipType", "GameTooltip")
-		self:SetFuBarOption("hasNoColor", true)
-		self:SetFuBarOption("cannotDetachTooltip", true)
-		self:SetFuBarOption("hideWithoutStandby", true)
-		self:SetFuBarOption("iconPath", "Interface\\Icons\\INV_Misc_PocketWatch_02")
-	end
 end
 
 local function qpush(self, ...)
@@ -216,7 +206,6 @@ function CooldownTimers:OnEnable()
 	self:RegisterEvent("UNIT_PET");
 
 	self.tooltip = CreateFrame("GameTooltip", "CDTTooltip", UIParent, "GameTooltipTemplate");
-	--self.tooltip:SetScript("OnLoad", function(self) self:SetOwner(UIParent, "ANCHOR_NONE") end);
 	self.tooltip:SetOwner(UIParent, "ANCHOR_NONE");
 	self.anchors = {}
 	
@@ -233,11 +222,11 @@ function CooldownTimers:OnEnable()
 	SM:Register("statusbar", "BantoBar", "Interface\\AddOns\\CooldownTimers2\\Textures\\bar.tga")
 
 	if not self.bars then
-		self.bars = {}
+            self.bars = {}
 	end
 
 	if not self.baralphas then
-		self.baralphas = {}
+            self.baralphas = {}
 	end
 
 	self.queue = { first =0, last = -1, isEmpty = true}
@@ -245,17 +234,17 @@ function CooldownTimers:OnEnable()
 	self.queue.pop = qpop;
 
 	if not self.announce then
-		self:MakeAnnounce()
-		self:UpdateAnnounce()
+            self:MakeAnnounce()
+            self:UpdateAnnounce()
 	end
 
 	db = self.db.profile;
 
 	if db.autogroup then
-		self:SecureHook("UseAction", "useAction");
-		self:SecureHook("UseContainerItem", "useContainer");
-		self:SecureHook("UseInventoryItem", "useInventory");
-		self:SecureHook("UseItemByName", "useItem");
+            self:SecureHook("UseAction", "useAction");
+            self:SecureHook("UseContainerItem", "useContainer");
+            self:SecureHook("UseInventoryItem", "useInventory");
+            self:SecureHook("UseItemByName", "useItem");
 	end
 
 	--if not self.db.profile.groups.GroupCooldowns.disabled then
