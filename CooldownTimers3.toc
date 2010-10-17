@@ -17,8 +17,8 @@
 ## X-Category: Interface Enhancements
 
 embeds.xml
-Locale\Locale-enUS.lua
-Locale\Locale-zhCN.lua
+locale\Locale-enUS.lua
+locale\Locale-zhCN.lua
 
 CooldownTimers3.lua
-#Options.lua
+#options.lua
