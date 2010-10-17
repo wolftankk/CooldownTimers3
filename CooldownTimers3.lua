@@ -1,5 +1,6 @@
 local _, cdt = ...;
-cdt = LibStub(cdt, "CooldownTimers3", "AceEvent-3.0", "AceComm-3.0", "AceConsole-3.0");
+cdt = LibStub(cdt, "CooldownTimers3", "AceEvent-3.0", "AceComm-3.0", "AceSerializer-3.0", "AceHook-3.0", "AceConsole-3.0");
+local CallbackHandler = LibStub("CallbackHandler-1.0");
 cdt.version = GetAddOnMetadata("CooldownTimers3", "version");
 cdt.reversion = tonumber(("$Revision: 39$"):match("%d+"));
 local L = LibStub("AceLocale-3.0"):GetLocale("CooldownTimers3");
@@ -140,13 +141,39 @@ function cdt:OnInitialize()
     SM:Register("statusbar", "Cilo", "Interface\\AddOns\\CooldownTimers3\\texture\\cilo");
     SM:Register("statusbar", "BantoBar", "Interface\\AddOns\\CooldownTimers3\\texture\\bar");
 
+    self.callbacks = CallbackHandler:New(self);
+
     self:CreateLDB();
+end
+
+local function qpush(self, ...)
+    self.last = self.last + 1;
+    self[self.last] = new(...);
+    self.isEmpty = false;
+end
+
+local function qpop(self)
+    if self.isEmpty then return nil end
+    local s,t = unpack(self[self.first]);
+    self[self.first] = del(self[self.first]);
+    self.first = self.first + 1;
+    if self.first > self.last then
+        self.isEmpty = true;
+    end
+    return s, t
 end
 
 function cdt:OnEnable()
     self:RegisterEvent("SPELL_UPDATE_COOLDOWN");  
     self:RegisterEvent("PLAYER_ALIVE", "PopulateCooldowns");
     self:RegisterEvent("SPELLS_CHANGED", "PopulateCooldowns");
+    self:RegisterEvent("PLAYER_ENTERING_WORLD");
+    self:RegisterEvent("BAG_UPDATE_COOLDOWN");
+    self:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED");
+    if db.pulseoncooldown then
+        self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED", "OnSpellFail");
+    end
+    self:RegisterEvent("PARTY_MEMBERS_CHANGED", "Party");
     self:RegisterEvent("UNIT_PET");
 
     local tooltip = CreateFrame("GameTooltip", "CDTTooltip", UIParent, "GameTooltipTemplate");
@@ -154,9 +181,33 @@ function cdt:OnEnable()
     self.tooltip = tooltip;
 
     self.anchors = {};
+    for k, v in pairs(db.groups) do
+        self:MakeAnchor(k, v)
+    end
+    self:FixGroups();
+    
     self.bars = {};
     self.baralphas = {};
+    
+    self.queue = {first = 1, last = -1, isEmpty = true};
+    self.queue.push = qpush;
+    self.queue.qpop = qpop;
 
+    if not self.announce then
+        self:MakeAnnounce();
+    end
+
+    if db.autogroup then
+        self:SecureHook("UseAction");
+        self:SecureHook("UseContainerItem");
+        self:SecureHook("UseInventoryItem");
+        self:SecureHook("UseItemByName");
+    end
+
+    --sync your cooldown data
+    self:RegisterComm("CooldownTimers3");
+    self.offsets = {}
+    self.lastsend = 0;
 end
 
 function cdt:OnDisable()
@@ -185,12 +236,159 @@ function cdt:CreateLDB()
     end
 end
 
+---------------------------------------------------------------
+-- comm handling
+function cdt:SendComm(...)
+    self:SendCommMessage("CooldownTimers3", self:Serialize(...), "PARTY", nil, "ALERT");
+end
+
+local function dispatchComm(sender, ok, commType, ...)
+    if ok and type(commType) == "string" then
+        cdt.callbacks:Fire("OnComm"..commType, sender, ...);
+    end
+end
+
+function cdt:OnCommReceived(prefix, message, distribution, sender)
+    if db.groups.GroupCooldowns.disabled then return end
+    dispatchComm(sender, self:Deserialize(...))
+end
+
+function cdt:OnCommOffset(commType, sender, offset)
+    if not self.offsets[sender] then
+        self.offsets[sender] = new();
+        self.offsets[sender].offset = 0;
+        self.offsets[sender].x = 0;
+    end
+    offset = offset - GetTime() + select(3, GetNetStats())/1000;
+    if abs(self.offsets[sender].offset - offset) > 3 * (select(3, GetNetStats()) / 1000) then
+        self.offsets[sender].x = 1;
+        self.offsets[sender].offset = offset;
+    else
+        self.offsets[sender].offset = (self.offsets[sender].offset * self.offsets[sender].x + offset)/(self.offsets[offset].x + 1);
+        self.offsets[sender].x = self.offsets[sender].x + 1;
+    end
+    
+    --"cdt-req-sender"
+    if self.offsets[sender].x < 5 then
+    elseif self.offsets[sender].x >= 5 then
+    end
+end
+
+function cdt:OnCommNew(commType, sender, skillName, skillIcon, start, duration)
+    if not db.groupcooldowns[skillName] then
+        db.groupcooldowns[skillName] = new();
+        db.groupcooldowns[skillName].icon = skillIcon;
+        db.groupcooldowns[skillName].start = 0;
+        db.groupcooldowns[skillName].group = "GroupCooldowns";
+    end
+
+    if not db.groupcooldowns[skillName].disabled then
+        db.groupcooldowns[skillName].icon = skillIcon;
+        db.groupcooldowns[skillName].start = start + self.offsets[sender].offset;
+        self:SetUpBar(sender.." - "..skillName, db.groupcooldowns[skillName], duration);
+    end
+end
+
+function cdt:OnCommKill()
+
+end
+
+function cdt:OnCommReqoffsets()
+
+end
+
+-----------------------------------------------------------
+-- hook
+function cdt:UseAction(slot)
+    local item, id = GetActionInfo(slot);
+    if item == "item" then
+        self.lastitem = id;
+    end
+end
+
+function cdt:UseContainerItem(bag, slot)
+    self.lastitem = GetContainerItemLink(bag, slot)
+end
+
+function cdt:UseInventoryItem(slot)
+    self.lastitem = GetInventoryItemLink("player", slot);
+end
+
+function cdt:UseItemByName(name)
+    self.lastitem = name
+end
+
+-----------------------------------------------------------
+--event
+function cdt:PLAYER_ENTERING_WORLD()
+    self:ResetCooldowns();
+    if GetNumPartyMembers() > 0 then
+        self:Party();
+    end
+end
+
+function cdt:Party()
+    if GetNumPartyMembers() > 0 and abs(GetTime() - self.lastsend) > 3 then
+        self.lastsend = GetTime();
+        self:SendComm("offset", GetTime());
+    else
+        for k, v in pairs(self.offsets) do
+            self.offsets[k] = del(v)
+        end
+    end
+end
+
 function cdt:SPELL_UPDATE_COOLDOWN()
     local start, duration, enable, name;
     local cooldowns = new();
 
     for k, v in pairs(self.db.class.cooldowns) do
+        name = GetSpellBookItemName(v.id, BOOKTYPE_SPELL);
+        if not v.disabled and (k == name or k == self.db.class.skillgroups[name]) then
+            start, duration, enable = GetSpellCooldown(v.id, BOOKTYPE_SPELL);
+            if enable == 1 and duration > db.mintime and duration <= db.maxtime and v.start ~= start then
+                v.start = start;
+                if db.autogroup then
+                    local index = floor(start * duration);
+                    if not cooldowns[index] then
+                        cooldowns[index] = new();
+                        cooldowns[index].name = k;
+                        cooldowns[index].spell = v;
+                        cooldowns[index].duration = duration;
+                    end
+                    if name == self.lastcast then
+                        cooldowns[index].name = name;
+                        cooldowns[index].spell = v;
+                    end
+                else
+                    self:SetUpBar(name, db.itemcooldowns[name], duration); 
+                end
+            end
+        end
+    end
+    for k, v in pairs(cooldowns) do
+        self:SetUpBar(v.name, v.item, v.duration);
+        del(cooldowns[k])
+    end
+    del(cooldowns);
+end
 
+function cdt:ResetCooldowns()
+    self:KillAllBars();
+    for k, v in pairs(self.db.class.cooldowns) do
+        v.start = 0;
+    end
+    for k, v in pairs(self.db.char.petcooldowns) do
+        v.start = 0;
+    end
+    for k, v in pairs(db.itemcooldowns) do
+        v.start = 0;
+    end
+
+    self:SPELL_UPDATE_COOLDOWN();
+    self:BAG_UPDATE_COOLDOWN();
+    if UnitExists("pet") then
+        self:PET_BAR_UPDATE_COOLDOWN();
     end
 end
 
@@ -249,6 +447,8 @@ function cdt:PopulateCooldowns()
     if UnitExists("pet") then
         self:PopulatePetCooldowns();
     end
+    self:SPELL_UPDATE_COOLDOWN();
+    self:BAG_UPDATE_COOLDOWN();
 end
 
 function cdt:UNIT_PET(unit)
@@ -260,4 +460,25 @@ end
 
 function cdt:PopulatePetCooldowns()
 
+end
+
+-----------------------------------------------------
+-- bar handling
+function cdt:SetUpBar(skillName, skillOptions, duration)
+    print(skillName);
+    local group = db.groups[skillOptions.group];
+    if skillOptions.share and next(self.offsets) then
+        self:SendComm("New", skillName, skillOptions.icon, skillOptions.start, duration);
+    end
+    local colors = skillOptions.colors or group.colors or db.barOptions.colors;
+    if self.bars[skillName] then
+        self.bars[skillName]:Stop();
+    end
+
+    if group.collapse or (group.collapse == nil and db.barOptions.collapse) then
+    
+    else
+       --create a new candy bar 
+
+    end
 end
