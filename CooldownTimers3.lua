@@ -8,6 +8,7 @@ local candy = LibStub("LibCandyBar-3.0");
 local SM = LibStub("LibSharedMedia-3.0")
 local LDB = LibStub("LibDataBroker-1.1", true);
 local icon = LibStub("LibDBIcon-1.0", true);
+local barlist = {};
 local db;
 
 --bummed from ckknight's pitbull, with his permission:
@@ -176,6 +177,11 @@ function cdt:OnEnable()
     self:RegisterEvent("PARTY_MEMBERS_CHANGED", "Party");
     self:RegisterEvent("UNIT_PET");
 
+    --[[
+    --candy.RegisterCallback(self, "LibCandyBar_Stop", barStopped);
+    cdt.RegisterCallback(self, "OnCommNew");
+    cdt.RegisterCallback(self, "OnCommOffset");
+
     local tooltip = CreateFrame("GameTooltip", "CDTTooltip", UIParent, "GameTooltipTemplate");
     tooltip:SetOwner(UIParent, "ANCHOR_NONE");
     self.tooltip = tooltip;
@@ -207,7 +213,7 @@ function cdt:OnEnable()
     --sync your cooldown data
     self:RegisterComm("CooldownTimers3");
     self.offsets = {}
-    self.lastsend = 0;
+    self.lastsend = 0;]]
 end
 
 function cdt:OnDisable()
@@ -472,13 +478,35 @@ function cdt:SetUpBar(skillName, skillOptions, duration)
     end
     local colors = skillOptions.colors or group.colors or db.barOptions.colors;
     if self.bars[skillName] then
-        self.bars[skillName]:Stop();
+        barlist[self.bars[skillName]]:Stop();
     end
 
     if group.collapse or (group.collapse == nil and db.barOptions.collapse) then
-    
+        local barname = "cdt-"..skillName;
+        if not barlist[barname] then
+            local barwidth = group.barwidth or db.barOptions.barwidth;
+            local barheight = group.barheight or db.barOptions.barheight;
+            local bartexture = SM:Fetch("statusbar", skillOptions.texture or group.texture or db.barOptions.texture);
+            barlist[barname] = candy:New(bartexture, barwidth, barheight);
+        end
+        local bar = barlist[barname];
+        bar:SetScale(group.scale or db.barOptions.scale); 
+        bar:SetIcon(skillOptions.icon);
+        bar:SetDuration(duration);
+        bar:Start();
+        self.bars[skillName] = barname;
     else
        --create a new candy bar 
 
+    end
+end
+
+function cdt:GetOffset(bar, group, groupName)
+
+end
+
+function cdt:KillAllBars()
+    for k, v in pairs(barlist) do
+        v:Stop();
     end
 end
