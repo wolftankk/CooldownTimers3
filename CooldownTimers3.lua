@@ -8,8 +8,8 @@ local candy = LibStub("LibCandyBar-3.0");
 local SM = LibStub("LibSharedMedia-3.0")
 local LDB = LibStub("LibDataBroker-1.1", true);
 local icon = LibStub("LibDBIcon-1.0", true);
-local barlist = {};
 local db;
+local barlist = {}
 
 --bummed from ckknight's pitbull, with his permission:
 local new, del
@@ -188,7 +188,7 @@ function cdt:OnEnable()
 
     self.anchors = {};
     for k, v in pairs(db.groups) do
-        self:MakeAnchor(k, v)
+        self:CreateGroupHeader(k, v)
     end
     self:FixGroups();
     
@@ -580,8 +580,16 @@ function cdt:UNIT_PET(unit)
 end
 
 function cdt:PET_BAR_UPDATE_COOLDOWN()
+    local start, duration, enable, name;
     for k, v in pairs(self.db.char.petcooldowns) do
-
+        name = GetSpellBookItemName(v.id, BOOKTYPE_PET);
+        if not v.disabled and k == name then
+            start, duration, enable = GetSpellCooldown(v.id, BOOKTYPE_PET);
+            if enable == 1 and duration > db.mintime and duration <= db.maxtime and v.start ~= start then
+                v.start = start;
+                self:SetUpBar(k, v, duration);
+            end
+        end
     end
 end
 
@@ -592,7 +600,7 @@ function cdt:PopulatePetCooldowns()
     local last;
     if db.groups.PetCooldowns == nil then
         db.groups.PetCooldowns = {};
-        self:MakeAnchor("PetCooldowns", db.groups.PetCooldowns)
+        self:CreateGroupHeader("PetCooldowns", db.groups.PetCooldowns)
     end
 
     while cooldown do
@@ -635,15 +643,32 @@ end
 local function barSorter(a, b)
     return a.remaining < b.remaining and true or false;
 end
-local tmp = {}
-local function rearrangeBars()
+
+local function gradientBar(bar)
 
 end
 
-local function Status(name)
-    local bar = barlist[name];
-    if not bar then return end
-
+local function rearrangeBars()
+    local tmp = new();
+    for k, v in pairs(barlist) do
+        tmp[#tmp + 1] = v;
+    end
+    table.sort(tmp, barSorter);
+    local lastBar = {};
+    for i, bar in next, tmp do
+        bar:ClearAllPoints();
+        bar:Hide();
+        local g = bar:Get("group");
+        if not lastBar[g] then
+            bar:SetPoint("BOTTOM", cdt.anchors[g], 0, -15);  
+        else
+            bar:SetPoint("TOPLEFT", lastBar[g], "BOTTOMLEFT");
+            bar:SetPoint("TOPRIGHT", lastBar[g], "BOTTOMRIGHT");
+        end
+        lastBar[g] = bar;
+        bar:Show();
+    end
+    del(tmp);
 end
 
 function cdt:SetUpBar(skillName, skillOptions, duration)
@@ -652,12 +677,24 @@ function cdt:SetUpBar(skillName, skillOptions, duration)
         self:SendComm("New", skillName, skillOptions.icon, skillOptions.start, duration);
     end
 
-    --TODO: fix colors
-    local colors = skillOptions.colors or group.colors or db.barOptions.colors;
+    local r1, g1, b1 = unpack(self.db.profile.barOptions.colors.colors1)
+    local r2, g2, b2 = unpack(self.db.profile.barOptions.colors.colors2)
+    local colors;
+
+    if skillOptions.colors then
+        colors = skillOptions.colors
+    elseif group.colors then
+        local gr1, gg1, gb1 = unpack(group.colors.colors1);
+        local gr2, gg2, gb2 = unpack(group.colors.colors2);
+        colors = {gr1, gg1, gb1, gr2, gg2, gb2};
+    else
+        colors = {r1, g1, b1, r2, g2, b2};  
+    end
+
     if self.bars[skillName] then
         barlist[self.bars[skillName]]:Stop();
     end
-
+    
     if group.collapse or (group.collapse == nil and db.barOptions.collapse) then
         local barname = "cdt-"..skillName;
         if not barlist[barname] then
@@ -667,18 +704,25 @@ function cdt:SetUpBar(skillName, skillOptions, duration)
             barlist[barname] = candy:New(bartexture, barwidth, barheight);
         end
         local bar = barlist[barname];
+        --set bar attribute
+        bar:Set("group", skillOptions.group);
+        bar:Set("colors", colors);
+        bar:Set("barName", barname);
+        bar:Set("skillName", skillName or skillOptions.name);
+        bar:Set("fade", 1);
         bar:SetScale(group.scale or db.barOptions.scale); 
         bar:SetIcon(skillOptions.icon);
         bar:SetDuration(duration);
         bar:SetTimeVisibility(true);
         bar:SetLabel(skillOptions.name or skillName);
-        --bar:SetColor();
-        bar:Set("barName", barname);
+        bar:SetColor(unpack(colors));
+        --add update func
+        --bar:AddUpdateFunction();
         bar:Start();
         self.bars[skillName] = barname;
     else
        --create a new candy bar 
-
+       print(123131)
     end
     
     rearrangeBars();
@@ -727,7 +771,6 @@ do
             bar:Set("barName", "Testbar");
             bar:Start();
             bar:SetPoint("BOTTOM", cdt.anchors[group], 4, -15);
-            --bar:SetPoint("BOTTOMRIGHT", cdt.anchors[group], -4, -15);
             bar:Show();
             testbar = bar;
         end
@@ -738,7 +781,7 @@ do
     end
 end
 
-function cdt:MakeAnchor(group, info)
+function cdt:CreateGroupHeader(group, info)
     if info.disabled then
         return;
     end
@@ -801,7 +844,6 @@ function cdt:MakeAnchor(group, info)
         f:Show()
     end
 
-    f:Show();
     self.anchors[group] = f;
 end
 
@@ -824,9 +866,13 @@ function cdt:KillAllBars()
 end
 
 function cdt:barStopped(event, bar)
-    --if barlist[bar] then
-    --    barlist[bar] = nil;
-    --end
+    local skillName = bar:Get("skillName"); 
+    local barName = self.bars[skillName];
+    if barlist[barName] then
+        barlist[barName] = nil;
+        self.bars[skillName] = nil;
+        rearrangeBars();
+    end
 end
 
 --------------------------------------------------
