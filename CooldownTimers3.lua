@@ -139,9 +139,9 @@ function cdt:OnInitialize()
     self.db.RegisterCallback(self, "OnProfileReset", "OnProfileChanged");
     self.db.RegisterCallback(self, "OnProfileCopied", "OnProfileChanged");
     
-    SM:Register("statusbar", "Smooth", "Interface\\AddOns\\CooldownTimers3\\texture\\smooth");
-    SM:Register("statusbar", "Cilo", "Interface\\AddOns\\CooldownTimers3\\texture\\cilo");
-    SM:Register("statusbar", "BantoBar", "Interface\\AddOns\\CooldownTimers3\\texture\\bar");
+    SM:Register("statusbar", "Smooth", "Interface\\AddOns\\CooldownTimers3\\textures\\smooth");
+    SM:Register("statusbar", "Cilo", "Interface\\AddOns\\CooldownTimers3\\textures\\cilo");
+    SM:Register("statusbar", "BantoBar", "Interface\\AddOns\\CooldownTimers3\\textures\\bar");
 
     self.callbacks = CallbackHandler:New(self);
 
@@ -688,9 +688,9 @@ do
         if IsAltKeyDown() or altkey then
             --create test bar 
             if testbar then
-              --  testbar:Stop();
-              --  testbar = nil;
-              --  return;
+                testbar:Stop();
+                testbar = nil;
+                return;
             end
             local bar = candy:New(SM:Fetch("statusbar", db.groups[group].texture or db.barOptions.texture), db.groups[group].barwidth or db.barOptions.barwidth, db.groups[group].barheight or db.barOptions.barheight); 
             bar:SetDuration(30);
@@ -702,8 +702,8 @@ do
             bar:SetColor(1, 0, 0, 0.6);
             bar:Set("barName", "Testbar");
             bar:Start();
-            bar:SetPoint("BOTTOMLEFT", cdt.anchors[group], 4, -15);
-            bar:SetPoint("BOTTOMRIGHT", cdt.anchors[group], -4, -15);
+            bar:SetPoint("BOTTOM", cdt.anchors[group], 4, -15);
+            --bar:SetPoint("BOTTOMRIGHT", cdt.anchors[group], -4, -15);
             bar:Show();
             testbar = bar;
         end
@@ -713,6 +713,7 @@ do
         end
     end
 end
+
 function cdt:MakeAnchor(group, info)
     if info.disabled then
         return;
@@ -804,10 +805,8 @@ function cdt:KillAllBars()
 end
 
 function cdt:barStopped(event, bar)
-    local barName = bar:Get("barName");
-    print(barName);
-    if self.bars[barName] then
-        self.bars[barName] = nil;
+    if barlist[bar] then
+        barlist[bar] = nil;
     end
 end
 
