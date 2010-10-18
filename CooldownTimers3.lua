@@ -178,7 +178,7 @@ function cdt:OnEnable()
     self:RegisterEvent("PARTY_MEMBERS_CHANGED", "Party");
     self:RegisterEvent("UNIT_PET");
 
-    --candy.RegisterCallback(self, "LibCandyBar_Stop", barStopped);
+    candy.RegisterCallback(self, "LibCandyBar_Stop", "barStopped");
     --cdt.RegisterCallback(self, "OnCommNew");
     --cdt.RegisterCallback(self, "OnCommOffset");
 
@@ -232,6 +232,15 @@ function cdt:CreateLDB()
             icon = "Interface\\Icons\\INV_Misc_PocketWatch_02",
             OnClick = function()
 
+            end,
+            OnEnter = function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_TOPRIGHT");
+                GameTooltip:AddLine("CooldownTimers3");
+                GameTooltip:AddLine("Open CooldownTimers3 configure panel");
+                GameTooltip:Show();
+            end,
+            OnHide = function(self)
+                GameTooltip:Hide();
             end
         })
     end
@@ -253,9 +262,9 @@ local function dispatchComm(sender, ok, commType, ...)
     end
 end
 
-function cdt:OnCommReceived(prefix, message, distribution, sender, ...)
+function cdt:OnCommReceived(prefix, message, distribution, sender)
     if db.groups.GroupCooldowns.disabled then return end
-    dispatchComm(sender, self:Deserialize(...))
+    dispatchComm(sender, self:Deserialize(message))
 end
 
 function cdt:OnCommOffset(commType, sender, offset)
@@ -583,7 +592,7 @@ function cdt:PopulatePetCooldowns()
     local last;
     if db.groups.PetCooldowns == nil then
         db.groups.PetCooldowns = {};
-        --make
+        self:MakeAnchor("PetCooldowns", db.groups.PetCooldowns)
     end
 
     while cooldown do
@@ -622,7 +631,6 @@ end
 -----------------------------------------------------
 -- bar handling
 function cdt:SetUpBar(skillName, skillOptions, duration)
-    print(skillName, skillOptions);
     local group = db.groups[skillOptions.group];
     if skillOptions.share and next(self.offsets) then
         self:SendComm("New", skillName, skillOptions.icon, skillOptions.start, duration);
@@ -653,6 +661,58 @@ function cdt:SetUpBar(skillName, skillOptions, duration)
 end
 
 --create group frame
+local SavePosition, OnAnchorClick, ShowAnchorTooltip, LockAnchor
+do
+    function SavePosition(group)
+        db.groups[group].point, _, db.groups[group].relPoint, db.groups[group].x, db.groups[group].y = cdt.anchors[group]:GetPoint();
+    end
+
+    function LockAnchor(group)
+        db.groups[group].locked = true;
+        cdt.anchors[group]:Hide();
+    end
+
+    function ShowAnchorTooltip(f)
+	GameTooltip:SetOwner(f, "ANCHOR_BOTTOMRIGHT")
+	GameTooltip:AddLine(L["CDT Group Anchor"])
+	GameTooltip:AddLine("- "..L["Drag this to reposition"])
+	GameTooltip:AddLine("- "..L["Shift+Left Click to hide"])
+	GameTooltip:AddLine("- "..L["Alt+Left Click to show a test bar"])
+	GameTooltip:AddLine("- "..L["Alt+Left Click again to hide the test bar"])
+	GameTooltip:AddLine("- "..L["If you hide this, you can show it again by going to Group Options -> groupname -> Uncheck Lock"])
+	GameTooltip:Show()
+    end
+    
+    local testbar;
+    function OnAnchorClick(group, altkey)
+        if IsAltKeyDown() or altkey then
+            --create test bar 
+            if testbar then
+              --  testbar:Stop();
+              --  testbar = nil;
+              --  return;
+            end
+            local bar = candy:New(SM:Fetch("statusbar", db.groups[group].texture or db.barOptions.texture), db.groups[group].barwidth or db.barOptions.barwidth, db.groups[group].barheight or db.barOptions.barheight); 
+            bar:SetDuration(30);
+            bar:SetScale(1);
+            bar:SetIcon("Interface\\Icons\\INV_Misc_QuestionMark");
+            bar:SetTimeVisibility(true);
+            bar:SetTexture(SM:Fetch("statusbar", db.groups[group].texture or db.barOptions.texture));
+            bar:SetLabel("Test bar");
+            bar:SetColor(1, 0, 0, 0.6);
+            bar:Set("barName", "Testbar");
+            bar:Start();
+            bar:SetPoint("BOTTOMLEFT", cdt.anchors[group], 4, -15);
+            bar:SetPoint("BOTTOMRIGHT", cdt.anchors[group], -4, -15);
+            bar:Show();
+            testbar = bar;
+        end
+
+        if IsShiftKeyDown() then
+            LockAnchor(group)
+        end
+    end
+end
 function cdt:MakeAnchor(group, info)
     if info.disabled then
         return;
@@ -695,23 +755,34 @@ function cdt:MakeAnchor(group, info)
     end);
     f:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing();
-        --self:SavePosition(group);
+        SavePosition(group);
     end);
-    --[[f:SetScript("OnMouseUp", function(self)
-        self:OnAnchorClick(group)
+    f:SetScript("OnMouseUp", function(self)
+        OnAnchorClick(group)
     end);
     
     f:SetScript("OnEnter", function(self)
-      
+        ShowAnchorTooltip(self); 
     end)
     
     f:SetScript("OnLeave", function(self)
         GameTooltip:Hide();
     end);
-    ]]
     f:RegisterForDrag("LeftButton");
+    
+    if db.groups[group].locked or db.groups[group].disabled then
+        f:Hide();
+    else
+        f:Show()
+    end
+
     f:Show();
     self.anchors[group] = f;
+end
+
+-----auto adjust bar position
+local function rearrangeBars()
+
 end
 
 function cdt:FixGroups()
@@ -722,8 +793,30 @@ function cdt:GetOffset(bar, group, groupName)
 
 end
 
+function cdt:FlashBar()
+
+end
+
 function cdt:KillAllBars()
     for k, v in pairs(barlist) do
         v:Stop();
     end
+end
+
+function cdt:barStopped(event, bar)
+    local barName = bar:Get("barName");
+    print(barName);
+    if self.bars[barName] then
+        self.bars[barName] = nil;
+    end
+end
+
+--------------------------------------------------
+--announce
+function cdt:MakeAnnounce()
+
+end
+
+function cdt:LockPluseIcon(locked)
+
 end
