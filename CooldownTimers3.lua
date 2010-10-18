@@ -1,5 +1,5 @@
 local _, cdt = ...;
-cdt = LibStub(cdt, "CooldownTimers3", "AceEvent-3.0", "AceComm-3.0", "AceSerializer-3.0", "AceHook-3.0", "AceConsole-3.0");
+cdt = LibStub("AceAddon-3.0"):NewAddon(cdt, "CooldownTimers3", "AceEvent-3.0", "AceComm-3.0", "AceSerializer-3.0", "AceHook-3.0", "AceConsole-3.0");
 local CallbackHandler = LibStub("CallbackHandler-1.0");
 cdt.version = GetAddOnMetadata("CooldownTimers3", "version");
 cdt.reversion = tonumber(("$Revision: 39$"):match("%d+"));
@@ -120,23 +120,24 @@ local defaults = {
 
 function cdt:OnInitialize()
     --update class data  
-    if pclass == "HUNTER" then
+    --[[if pclass == "HUNTER" then
 
     elseif pclass == "SHAMAN" then
 
     elseif pclass == "PALADIN" then
 
-    else
+    else]]
         defaults["class"]["cooldowns"] = {}
         defaults["class"]["skillgroups"] = {};
-    end
+    --end
+
 
     self.db = LibStub("AceDB-3.0"):New("CooldownTimersDB", defaults, "Default");
-    local db = self.db.profile;
+    db = self.db.profile;
 
-    self.db.RegisterCallback(self, "OnPorfileChanged", "OnPorifleChanged");
+    self.db.RegisterCallback(self, "OnProfileChanged", "OnProfileChanged");
     self.db.RegisterCallback(self, "OnProfileReset", "OnProfileChanged");
-    self.db.RegisterCallback(self, "OnPorfileCopied", "OnPorfileChanged");
+    self.db.RegisterCallback(self, "OnProfileCopied", "OnProfileChanged");
     
     SM:Register("statusbar", "Smooth", "Interface\\AddOns\\CooldownTimers3\\texture\\smooth");
     SM:Register("statusbar", "Cilo", "Interface\\AddOns\\CooldownTimers3\\texture\\cilo");
@@ -177,16 +178,15 @@ function cdt:OnEnable()
     self:RegisterEvent("PARTY_MEMBERS_CHANGED", "Party");
     self:RegisterEvent("UNIT_PET");
 
-    --[[
     --candy.RegisterCallback(self, "LibCandyBar_Stop", barStopped);
-    cdt.RegisterCallback(self, "OnCommNew");
-    cdt.RegisterCallback(self, "OnCommOffset");
+    --cdt.RegisterCallback(self, "OnCommNew");
+    --cdt.RegisterCallback(self, "OnCommOffset");
 
     local tooltip = CreateFrame("GameTooltip", "CDTTooltip", UIParent, "GameTooltipTemplate");
     tooltip:SetOwner(UIParent, "ANCHOR_NONE");
     self.tooltip = tooltip;
 
-    self.anchors = {};
+    --[[self.anchors = {};
     for k, v in pairs(db.groups) do
         self:MakeAnchor(k, v)
     end
@@ -202,7 +202,7 @@ function cdt:OnEnable()
     if not self.announce then
         self:MakeAnnounce();
     end
-
+    ]]
     if db.autogroup then
         self:SecureHook("UseAction");
         self:SecureHook("UseContainerItem");
@@ -213,7 +213,7 @@ function cdt:OnEnable()
     --sync your cooldown data
     self:RegisterComm("CooldownTimers3");
     self.offsets = {}
-    self.lastsend = 0;]]
+    self.lastsend = 0;
 end
 
 function cdt:OnDisable()
@@ -254,7 +254,7 @@ local function dispatchComm(sender, ok, commType, ...)
     end
 end
 
-function cdt:OnCommReceived(prefix, message, distribution, sender)
+function cdt:OnCommReceived(prefix, message, distribution, sender, ...)
     if db.groups.GroupCooldowns.disabled then return end
     dispatchComm(sender, self:Deserialize(...))
 end
@@ -379,6 +379,14 @@ function cdt:SPELL_UPDATE_COOLDOWN()
     del(cooldowns);
 end
 
+function cdt:BAG_UPDATE_COOLDOWN()
+
+end
+
+function cdt:UNIT_SPELLCAST_SUCCEEDED()
+
+end
+
 function cdt:ResetCooldowns()
     self:KillAllBars();
     for k, v in pairs(self.db.class.cooldowns) do
@@ -409,7 +417,7 @@ function cdt:PopulateCooldowns()
     local cooldowns = self.db.class.cooldowns; 
     local function checkRight(rtip)
         local t = rtip and rtip:GetText();
-        if rtip and (strmatch(t, cooldown1) or strmatch(t, cooldown2)) then
+        if t and (strmatch(t, cooldown1) or strmatch(t, cooldown2)) then
             return true
         end
     end
@@ -417,13 +425,11 @@ function cdt:PopulateCooldowns()
     while cooldown do
         if cooldown ~= last then
             last = cooldown;
-            --clear right tooltip text 
             CDTTooltipTextRight2:SetText("");
             CDTTooltipTextRight3:SetText("");
             CDTTooltipTextRight4:SetText("");
             CDTTooltipTextRight5:SetText("");
-            tooltip:SetSpell(i, BOOKTYPE_SPELL);
-
+            tooltip:SetSpellBookItem(i, BOOKTYPE_SPELL);
             if (checkRight(CDTTooltipTextRight2) or checkRight(CDTTooltipTextRight3) or checkRight(CDTTooltipTextRight4) or checkRight(CDTTooltipTextRight4) or checkRight(CDTTooltipTextRight5)) then
                 if ((not cooldowns[cooldown]) and (db.autogroup or not self.db.class.skillgroups[cooldown])) then
                     cooldowns[cooldown] = {
@@ -464,7 +470,15 @@ function cdt:UNIT_PET(unit)
     self:PopulatePetCooldowns();
 end
 
+function cdt:PET_BAR_UPDATE_COOLDOWN()
+
+end
+
 function cdt:PopulatePetCooldowns()
+
+end
+
+function cdt:OnSpellFail()
 
 end
 
