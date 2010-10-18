@@ -630,11 +630,29 @@ end
 
 -----------------------------------------------------
 -- bar handling
+-----auto adjust bar position
+
+local function barSorter(a, b)
+    return a.remaining < b.remaining and true or false;
+end
+local tmp = {}
+local function rearrangeBars()
+
+end
+
+local function Status(name)
+    local bar = barlist[name];
+    if not bar then return end
+
+end
+
 function cdt:SetUpBar(skillName, skillOptions, duration)
     local group = db.groups[skillOptions.group];
     if skillOptions.share and next(self.offsets) then
         self:SendComm("New", skillName, skillOptions.icon, skillOptions.start, duration);
     end
+
+    --TODO: fix colors
     local colors = skillOptions.colors or group.colors or db.barOptions.colors;
     if self.bars[skillName] then
         barlist[self.bars[skillName]]:Stop();
@@ -652,12 +670,18 @@ function cdt:SetUpBar(skillName, skillOptions, duration)
         bar:SetScale(group.scale or db.barOptions.scale); 
         bar:SetIcon(skillOptions.icon);
         bar:SetDuration(duration);
+        bar:SetTimeVisibility(true);
+        bar:SetLabel(skillOptions.name or skillName);
+        --bar:SetColor();
+        bar:Set("barName", barname);
         bar:Start();
         self.bars[skillName] = barname;
     else
        --create a new candy bar 
 
     end
+    
+    rearrangeBars();
 end
 
 --create group frame
@@ -781,11 +805,6 @@ function cdt:MakeAnchor(group, info)
     self.anchors[group] = f;
 end
 
------auto adjust bar position
-local function rearrangeBars()
-
-end
-
 function cdt:FixGroups()
 
 end
@@ -805,9 +824,9 @@ function cdt:KillAllBars()
 end
 
 function cdt:barStopped(event, bar)
-    if barlist[bar] then
-        barlist[bar] = nil;
-    end
+    --if barlist[bar] then
+    --    barlist[bar] = nil;
+    --end
 end
 
 --------------------------------------------------
