@@ -186,7 +186,7 @@ function cdt:OnEnable()
     tooltip:SetOwner(UIParent, "ANCHOR_NONE");
     self.tooltip = tooltip;
 
-    --[[self.anchors = {};
+    self.anchors = {};
     for k, v in pairs(db.groups) do
         self:MakeAnchor(k, v)
     end
@@ -200,9 +200,8 @@ function cdt:OnEnable()
     self.queue.qpop = qpop;
 
     if not self.announce then
-        self:MakeAnnounce();
+        --self:MakeAnnounce();
     end
-    ]]
     if db.autogroup then
         self:SecureHook("UseAction");
         self:SecureHook("UseContainerItem");
@@ -373,18 +372,116 @@ function cdt:SPELL_UPDATE_COOLDOWN()
         end
     end
     for k, v in pairs(cooldowns) do
-        self:SetUpBar(v.name, v.item, v.duration);
+        self:SetUpBar(v.name, v.spell, v.duration);
         del(cooldowns[k])
     end
     del(cooldowns);
 end
 
 function cdt:BAG_UPDATE_COOLDOWN()
+    local solts, id, name, start, duration, enable, link, _;
+    local cooldowns = new();
+    for i = 1, 18 do
+        start, duration, enable = GetInventoryItemCooldown("player", i);
+        if enable == 1 and duration > db.mintime and duration <= db.maxtime then
+            link = GetInventoryItemLink("player", i);
+            _, _, name = string.find(link, "Hitem[^|]+|h%[([^[]+)%]");
+            if db.itemgroups[name] then
+                name = db.itemgroups[name]
+            end
+            if not db.itemcooldowns[name] then
+                db.itemcooldowns[name] = {
+                    ["disabled"] = false,
+                    ["icon"] = GetInventoryItemTexture("player", i);
+                }
+                if not db.groups.ItemCooldowns.disabled then
+                    db.itemcooldowns[name].group = "ItemCooldowns";
+                else
+                    db.itemcooldowns[name].group = "CDT";
+                end
+            end
 
+            if not db.itemcooldowns[name].disabled and db.itemcooldowns[name].start ~= start then
+                db.itemcooldowns[name].start = start;
+                if db.autogroup then
+                    local index = floor(start * duration);
+                    if not cooldowns[index] then
+                        cooldowns[index] = new();
+                        cooldowns[index].name = name;
+                        cooldowns[index].item = db.itemcooldowns[name];
+                        cooldowns[index].duration = duration
+                    end
+
+                    if self.lastitem and strfind(link, self.lastitem, 1, true) then
+                        cooldowns[index].name = name;
+                        cooldowns[index].item = db.itemcooldowns[name];
+                    end
+                else
+                    self:SetUpBar(name, db.itemcooldowns[name], duration);
+                end
+            end
+        end
+    end
+
+    for bag = 0, 4 do
+        slots = GetContainerNumSlots(bag);
+        for s = 1, slots do
+            start, duration, enable = GetContainerItemCooldown(bag, s);
+            if enable == 1 and duration > db.mintime and duration <= db.maxtime then
+                link = GetContainerItemLink(bag, s);
+                _, _, name = strfind(link, "Hitem[^|]+|h%[([^[]+)%]");
+                if db.itemgroups[name] then
+                    name = db.itemgroups[name]
+                end
+                if not db.itemcooldowns[name] then
+                    db.itemcooldowns[name] = {
+                        ["disabled"] = false,
+                        ["icon"] = GetContainerItemInfo(bag, s);
+                    }
+                    if not db.groups.ItemCooldowns.disabled then
+                        db.itemcooldowns[name].group = "ItemCooldowns";
+                    else
+                        db.itemcooldowns[name].group = "CDT";
+                    end
+                end
+
+                if not db.itemcooldowns[name].disabled and db.itemcooldowns[name].start ~= start then
+                    db.itemcooldowns[name].start = start;
+                    if db.autogroup then
+                        local index = floor(start * duration);
+                        if not cooldowns[index] then
+                            cooldowns[index] = new();
+                            cooldowns[index].name = name;
+                            cooldowns[index].item = db.itemcooldowns[name];
+                            cooldowns[index].duration = duration;
+                        end
+                        if self.lastitem and strfind(link, self.lastitem, 1, true) then
+                            cooldowns[index].name = name;
+                            cooldowns[index].item = db.itemcooldowns[name];
+                        end
+                    else
+                        self:SetUpBar(name, db.itemcooldowns[name], duration);
+                    end
+                end
+            end
+        end
+    end
+
+    for k, v in pairs(cooldowns) do
+        self:SetUpBar(v.name, v.item, v.duration)
+        del(cooldowns[k]);
+    end
+    del(cooldowns)
 end
 
-function cdt:UNIT_SPELLCAST_SUCCEEDED()
-
+function cdt:UNIT_SPELLCAST_SUCCEEDED(unit, spell)
+    self.lastcast = spell;
+    if unit ~= "player" or spell ~= self.reset then
+        return
+    end
+    self:ResetCooldowns();
+    self:PET_BAR_UPDATE_COOLDOWN();
+    self:BAG_UPDATE_COOLDOWN();
 end
 
 function cdt:ResetCooldowns()
@@ -406,22 +503,23 @@ function cdt:ResetCooldowns()
     end
 end
 
+local function checkRight(rtip)
+    local cooldown1 = gsub(SPELL_RECAST_TIME_MIN, "%%%.%d[fg]", "(.+)");
+    local cooldown2 = gsub(SPELL_RECAST_TIME_SEC, "%%%.%d[fg]", "(.+)");
+    local t = rtip and rtip:GetText();
+    if t and (strmatch(t, cooldown1) or strmatch(t, cooldown2)) then
+        return true
+    end
+end
+
 function cdt:PopulateCooldowns()
     local i = 1;
     local cooldown = GetSpellBookItemName(i, BOOKTYPE_SPELL);
     local last;
     local tooltip = self.tooltip;
     local GetSpellBookItemName = GetSpellBookItemName;
-    local cooldown1 = gsub(SPELL_RECAST_TIME_MIN, "%%%.%d[fg]", "(.+)");
-    local cooldown2 = gsub(SPELL_RECAST_TIME_SEC, "%%%.%d[fg]", "(.+)");
     local cooldowns = self.db.class.cooldowns; 
-    local function checkRight(rtip)
-        local t = rtip and rtip:GetText();
-        if t and (strmatch(t, cooldown1) or strmatch(t, cooldown2)) then
-            return true
-        end
-    end
-
+    
     while cooldown do
         if cooldown ~= last then
             last = cooldown;
@@ -456,6 +554,8 @@ function cdt:PopulateCooldowns()
         cooldown = GetSpellBookItemName(i, BOOKTYPE_SPELL);
     end
 
+    db.cooldowns = cooldowns;
+
     if UnitExists("pet") then
         self:PopulatePetCooldowns();
     end
@@ -471,11 +571,48 @@ function cdt:UNIT_PET(unit)
 end
 
 function cdt:PET_BAR_UPDATE_COOLDOWN()
+    for k, v in pairs(self.db.char.petcooldowns) do
 
+    end
 end
 
 function cdt:PopulatePetCooldowns()
+    self:RegisterEvent("PET_BAR_UPDATE_COOLDOWN");
+    local i = 1;
+    local cooldown = GetSpellBookItemName(i, BOOKTYPE_PET);
+    local last;
+    if db.groups.PetCooldowns == nil then
+        db.groups.PetCooldowns = {};
+        --make
+    end
 
+    while cooldown do
+        if cooldown ~= last then
+            last = cooldown;
+            CDTTooltipTextRight2:SetText("");
+            CDTTooltipTextRight3:SetText("");
+            self.tooltip:SetSpellBookItem(i, BOOKTYPE_PET);
+            if (checkRight(CDTTooltipTextRight2)) or (checkRight(CDTTooltipTextRight3)) then
+                if not self.db.char.petcooldowns[cooldown] then
+                    self.db.char.petcooldowns[cooldown] = {
+                        start = 0,
+                        id = i,
+                        icon = GetSpellBookItemTexture(i, BOOKTYPE_PET)
+                    }
+                    if not db.groups.PetCooldowns.disabled then
+                        self.db.char.petcooldowns[cooldown].group = "PetCooldowns";
+                    else
+                        self.db.char.petcooldowns[cooldown].group = "CDT";
+                    end
+                elseif self.db.char.petcooldowns[cooldown] then
+                    self.db.char.petcooldowns[cooldown].id = i;
+                end
+            end
+        end
+        i = i + 1;
+        cooldown = GetSpellBookItemName(i, BOOKTYPE_PET);
+    end
+    self:PET_BAR_UPDATE_COOLDOWN();
 end
 
 function cdt:OnSpellFail()
@@ -485,7 +622,7 @@ end
 -----------------------------------------------------
 -- bar handling
 function cdt:SetUpBar(skillName, skillOptions, duration)
-    print(skillName);
+    print(skillName, skillOptions);
     local group = db.groups[skillOptions.group];
     if skillOptions.share and next(self.offsets) then
         self:SendComm("New", skillName, skillOptions.icon, skillOptions.start, duration);
@@ -513,6 +650,72 @@ function cdt:SetUpBar(skillName, skillOptions, duration)
        --create a new candy bar 
 
     end
+end
+
+--create group frame
+function cdt:MakeAnchor(group, info)
+    if info.disabled then
+        return;
+    end
+    local f = CreateFrame("Frame", nil, UIParent);
+    f:ClearAllPoints();
+    f:SetBackdrop({
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+	edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true,
+        tileSize = 16,
+        edgeSize = 16,
+        insets = {
+            left = 5,
+            right = 5,
+            top = 5,
+            bottom = 5
+        },
+    });
+
+    if not info.x then
+        info.x = 0;
+        info.y = 0;
+        info.relPoint = "CENTER";
+        info.point = "CENTER";
+    end
+
+    f:SetSize(128, 30);
+    f:SetBackdropColor(0.1, 0.1, 0.1, 0.6);
+    f:EnableMouse(true);
+    f:SetPoint(info.point, UIParent, info.relPoint, info.x, info.y);
+    local msg = f:CreateFontString(nil, "OVERLAY", "GameFontNormal");
+    msg:ClearAllPoints();
+    msg:SetPoint("CENTER", f, "CENTER", 0, 0);
+    msg:SetText(group);
+    f:SetMovable(true);
+    f:SetScript("OnDragStart", function(self)
+        self:StartMoving();
+        GameTooltip:Hide();
+    end);
+    f:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing();
+        --self:SavePosition(group);
+    end);
+    --[[f:SetScript("OnMouseUp", function(self)
+        self:OnAnchorClick(group)
+    end);
+    
+    f:SetScript("OnEnter", function(self)
+      
+    end)
+    
+    f:SetScript("OnLeave", function(self)
+        GameTooltip:Hide();
+    end);
+    ]]
+    f:RegisterForDrag("LeftButton");
+    f:Show();
+    self.anchors[group] = f;
+end
+
+function cdt:FixGroups()
+
 end
 
 function cdt:GetOffset(bar, group, groupName)
