@@ -369,11 +369,11 @@ function cdt:SPELL_UPDATE_COOLDOWN()
                         cooldowns[index].duration = duration;
                     end
                     if name == self.lastcast then
-                        cooldowns[index].name = name;
+                        cooldowns[index].name = k;
                         cooldowns[index].spell = v;
                     end
                 else
-                    self:SetUpBar(name, db.itemcooldowns[name], duration); 
+                    self:SetUpBar(k, v, duration); 
                 end
             end
         end
@@ -608,7 +608,7 @@ function cdt:PopulatePetCooldowns()
             CDTTooltipTextRight3:SetText("");
             self.tooltip:SetSpellBookItem(i, BOOKTYPE_PET);
             if (checkRight(CDTTooltipTextRight2)) or (checkRight(CDTTooltipTextRight3)) then
-                if not self.db.char.petcooldowns[cooldown] then
+                if not self.db.char.petcooldowns[cooldown] or (not self.db.char.petcooldowns[cooldown].group) then
                     self.db.char.petcooldowns[cooldown] = {
                         start = 0,
                         id = i,
