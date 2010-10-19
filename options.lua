@@ -1,6 +1,6 @@
-local SM = LibStub("LibSharedMedia-3.0")
-local L = LibStub("AceLocale-3.0"):GetLocale("CooldownTimers3");
-local CDT = LibStub("AceAddon-3.0"):GetAddon("CooldownTimers3");
+local addonName, cdt = ...
+local SM = LibStub("LibSharedMedia-3.0");
+local L = LibStub("AceLocale-3.0"):GetLocale(addonName);
 local optGetter, optSetter
 local strfind = string.find
 

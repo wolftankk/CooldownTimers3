@@ -1,9 +1,9 @@
-local _, cdt = ...;
-cdt = LibStub("AceAddon-3.0"):NewAddon(cdt, "CooldownTimers3", "AceEvent-3.0", "AceComm-3.0", "AceSerializer-3.0", "AceHook-3.0", "AceConsole-3.0");
+local addonName, cdt = ...;
+cdt = LibStub("AceAddon-3.0"):NewAddon(cdt, addonName, "AceEvent-3.0", "AceComm-3.0", "AceSerializer-3.0", "AceHook-3.0", "AceConsole-3.0");
 local CallbackHandler = LibStub("CallbackHandler-1.0");
-cdt.version = GetAddOnMetadata("CooldownTimers3", "version");
-cdt.reversion = tonumber(("$Revision: 39$"):match("%d+"));
-local L = LibStub("AceLocale-3.0"):GetLocale("CooldownTimers3");
+cdt.version = GetAddOnMetadata(addonName, "version");
+cdt.reversion = tonumber(("$Revision$"):match("%d+"));
+local L = LibStub("AceLocale-3.0"):GetLocale(addonName);
 local candy = LibStub("LibCandyBar-3.0");
 local SM = LibStub("LibSharedMedia-3.0")
 local LDB = LibStub("LibDataBroker-1.1", true);
@@ -11,7 +11,6 @@ local icon = LibStub("LibDBIcon-1.0", true);
 local db;
 local barlist = {}
 
---bummed from ckknight's pitbull, with his permission:
 local new, del
 do
     local list = setmetatable({}, {__mode='k'})
@@ -35,7 +34,6 @@ do
         return nil
     end
 end
---end sleazy code borrowing
 
 local _, pclass = UnitClass("player");
 cdt.pclass = pclass;
@@ -72,8 +70,8 @@ local defaults = {
         },
         ["barOptions"] = {
             ["colors"] = {
-                ["colors1"] = {0.9, 0.9, 0.1},
-                ["colors2"] = {0.1, 1, 0.09},
+                ["colors1"] = {0.9, 0.9, 0.1, 1},
+                ["colors2"] = {0.1, 1, 0.09, 1},
             },
             ["fade"] = 1,
             ["barwidth"] = 200,
@@ -195,12 +193,12 @@ function cdt:OnEnable()
     self.bars = {};
     self.baralphas = {};
     
-    self.queue = {first = 1, last = -1, isEmpty = true};
+    self.queue = {first = 0, last = -1, isEmpty = true};
     self.queue.push = qpush;
-    self.queue.qpop = qpop;
+    self.queue.pop = qpop;
 
     if not self.announce then
-        --self:MakeAnnounce();
+        self:MakeAnnounce();
     end
     if db.autogroup then
         self:SecureHook("UseAction");
@@ -644,8 +642,86 @@ local function barSorter(a, b)
     return a.remaining < b.remaining and true or false;
 end
 
-local function gradientBar(bar)
+local cachegradient = {};
+local function SetGradient(bar, c1, c2, ...)
+    if not bar then return end
+    local gtable = new();
+    local gradientid = nil;
+    if type(c1) == "number" then
+        local n = select("#", ...);
+        gtable[1] = new();
+        gtable[1][1] = c1;
+        gtable[1][2] = c2;
+        gtable[1][3] = select(1, ...);
+        gradientid = string.format("%d%d%d", c1, c2, gtable[1][3]);
 
+        for i = 2, n, 3 do
+            local r, g, b = select(i, ...);
+            if r and g and b then
+                local t = new();
+                t[1], t[2], t[3] = r, g, b;
+                tinsert(gtable, t);
+                gradientid = string.format("%s_%d%d%d", gradientid, r, g, b);
+            else
+                break;
+            end
+        end
+    end
+
+    local max = #gtable;
+    for i = 1, max do
+        if not gtable[i][4] then
+            gtable[i][4] = 1
+        end
+        gtable[i][5] = (i - 1) / (max - 1);
+    end
+
+    if bar.gradienttable then
+        for k, v in pairs(bar.gradienttable) do
+            v = del(v);
+        end
+        bar.gradienttable = del(bar.gradienttable);
+    end
+
+    bar.gradienttable = gtable;
+    bar.gradient = true;
+    bar.gradientid = gradientid;
+
+    if not cachegradient[gradientid] then
+        cachegradient[gradientid] = {}
+    end
+
+    bar:SetColor(unpack(gtable[1], 1, 4));
+    return true
+end
+
+local function gradientBar(bar)
+    local colors = bar:Get("colors");
+    local r1, g1, b1, r2, g2, b2 = unpack(colors);
+    local exp = bar:Get("duration");
+    local p = floor((bar.remaining / exp) * 100) / 100;
+    if bar.gradient then
+        if not cachegradient[bar.gradientid][p] then
+            local gstart, gend, gp
+            for i = 1, #bar.gradienttable - 1 do
+                if bar.gradienttable[i][5] < p and p <= bar.gradienttable[i+1][5] then
+                    gstart = bar.gradienttable[i];
+                    gend = bar.gradienttable[i + 1];
+                    gp = (p - gstart[5]) / (gend[5] - gstart[5])
+                end
+            end
+            if gstart and gend then
+                cachegradient[bar.gradientid][p] = new();
+                local i;
+                for i = 1, 4 do
+                    cachegradient[bar.gradientid][p][i] = gstart[i]*(1-gp) + gend[i]*(gp)
+                end
+            end
+        end
+        if cachegradient[bar.gradientid][p] then
+            bar:SetColor(unpack(cachegradient[bar.gradientid][p], 1, 4));
+        end
+    end
 end
 
 local function rearrangeBars()
@@ -677,13 +753,13 @@ function cdt:SetUpBar(skillName, skillOptions, duration)
         self:SendComm("New", skillName, skillOptions.icon, skillOptions.start, duration);
     end
 
-    local r1, g1, b1 = unpack(self.db.profile.barOptions.colors.colors1)
-    local r2, g2, b2 = unpack(self.db.profile.barOptions.colors.colors2)
+    local r1, g1, b1, a1 = unpack(self.db.profile.barOptions.colors.colors1)
+    local r2, g2, b2, a2 = unpack(self.db.profile.barOptions.colors.colors2)
     local colors;
 
     if skillOptions.colors then
         colors = skillOptions.colors
-    elseif group.colors then
+    elseif group and group.colors then
         local gr1, gg1, gb1 = unpack(group.colors.colors1);
         local gr2, gg2, gb2 = unpack(group.colors.colors2);
         colors = {gr1, gg1, gb1, gr2, gg2, gb2};
@@ -710,14 +786,16 @@ function cdt:SetUpBar(skillName, skillOptions, duration)
         bar:Set("barName", barname);
         bar:Set("skillName", skillName or skillOptions.name);
         bar:Set("fade", 1);
+        bar:Set("icon", skillOptions.icon)
+        bar:Set("duration", duration);
         bar:SetScale(group.scale or db.barOptions.scale); 
         bar:SetIcon(skillOptions.icon);
         bar:SetDuration(duration);
         bar:SetTimeVisibility(true);
         bar:SetLabel(skillOptions.name or skillName);
-        bar:SetColor(unpack(colors));
+        SetGradient(bar, unpack(colors))
         --add update func
-        --bar:AddUpdateFunction();
+        bar:AddUpdateFunction(gradientBar);
         bar:Start();
         self.bars[skillName] = barname;
     else
@@ -873,14 +951,304 @@ function cdt:barStopped(event, bar)
         self.bars[skillName] = nil;
         rearrangeBars();
     end
+    
+    if not db.announce.enabled then
+        return
+    end
+    self.queue:push(skillName, bar:Get("icon"));
+    self.pulse:Show();
 end
 
 --------------------------------------------------
 --announce
 function cdt:MakeAnnounce()
+    self.announce = {};
+    local anchor = CreateFrame("Frame", nil, UIParent);
+    anchor:ClearAllPoints();
+    anchor:SetPoint(db.announce.point, UIParent, db.announce.relPoint, db.announce.x, db.announce.y);
+    anchor:SetBackdrop({
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true,
+        tileSize = 16,
+        edgeSize = 16,
+        insets = {
+                left = 5,
+                right = 5,
+                top = 5,
+                bottom = 5
+        },
+    });
+    anchor:SetBackdropColor(0.1, 0.1, 0.3);
+    anchor:SetWidth(45);
+    anchor:SetHeight(45);
+    anchor:EnableMouse(true);
+    anchor:SetMovable(true);
+    anchor:SetScript("OnDragStart", function(self)
+        self:StartMoving();
+        GameTooltip:Hide();
+    end);
+    
+    anchor:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing();
+        db.announce.point, _, db.announce.relPoint, db.announce.x, db.announce.y = self:GetPoint();
+    end);
 
+    anchor:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOMRIGHT")
+        GameTooltip:AddLine(L["CDT Announce Anchor"])
+        GameTooltip:AddLine(L["Drag this to reposition the announcement text."])
+        GameTooltip:AddLine(L["Shift+Click this to lock it in position."])
+        GameTooltip:Show()
+    end);
+
+    anchor:SetScript("OnLeave", function(self)
+        GameTooltip:Hide();
+    end);
+
+    anchor:SetScript("OnMouseUp", function(self, button)
+        if IsShiftKeyDown() then
+            self:Hide();
+            db.announce.locked = true;
+        end
+    end);
+
+    anchor:RegisterForDrag("LeftButton");
+    self.announce.anchor = anchor;
+    
+    local f = CreateFrame("Frame", nil, UIParent);
+    f:ClearAllPoints();
+    local text = f:CreateFontString(nil, "OVERLAY", "ZoneTextFont");
+    text:ClearAllPoints();
+    text:SetPoint("CENTER", anchor, "CENTER", 0, 0);
+    f:SetAllPoints(text);
+    f:SetScale(db.announce.scale);
+    text:SetText(db.announce.announceString);
+    self.announce.frame = f;
+    self.announce.text = text;
+    self.announce.alpha = 1;
+    self.announce.last = GetTime();
+    self.announce.frame:SetScript("OnUpdate", function(self, elapsed)
+        if anchor:IsShown() then
+            return;
+        end
+        if (GetTime() - cdt.announce.last) > db.announce.fade then
+            cdt.announce.alpha = cdt.announce.alpha - 0.1
+        end
+        self:SetAlpha(cdt.announce.alpha);
+        if cdt.announce.alpha <= 0 then
+            self:Hide();
+        end
+    end);
+    self.announce.text:Show();
+    self.announce.anchor:SetFrameStrata("BACKGROUND");
+    self.announce.frame:SetFrameStrata("BACKGROUND");
+
+    if not db.announce.locked and db.announce.enabled then
+        self.announce.anchor:Show();
+        self.announce.frame:Show();
+    else
+        self.announce.anchor:Hide();
+        self.announce.frame:Hide();
+    end
+
+    if not self.pulse then
+        self:CreatePulse()
+    end
+end
+
+function cdt:CreatePulse()
+    local b = CreateFrame("Button", nil, UIParent);
+    local anchor = CreateFrame("Frame", nil, UIParent);
+    anchor:ClearAllPoints();
+    anchor:SetSize(30, 30);
+    anchor:SetBackdrop({
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true,
+        tileSize = 16,
+        edgeSize = 16,
+        insets = {
+                left = 5,
+                right = 5,
+                top = 5,
+                bottom = 5
+        },
+    })
+    anchor:SetBackdropColor(0.1, 0.1, 0.3);
+    local ploc = db.pulse.loc;
+    anchor:EnableMouse(true);
+    anchor:SetMovable(true);
+    anchor:SetPoint(ploc.point, UIParent, ploc.relPoint, ploc.x, ploc.y);
+    anchor:SetFrameLevel(5);
+    anchor:RegisterForDrag("LeftButton");
+    anchor:SetScript("OnDragStart", function(self)
+        self:StartMoving(); 
+    end)
+    anchor:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing();
+        ploc.point, _, ploc.relPoint, ploc.x, ploc.y = self:GetPoint();
+    end);
+    b.anchor = anchor;
+    b:ClearAllPoints();
+    b:SetPoint("CENTER", anchor, "CENTER", 0, 0);
+    b:SetSize(db.pulse.size, db.pulse.size);
+    b:EnableMouse(false);
+    b.animating = false;
+    b:SetResizable(true);
+    b:SetMaxResize(300, 300);
+    b:SetMinResize(50, 50);
+    b.animate = function()
+        cdt:AnimatePulse();
+    end
+    b.configure = function()
+        cdt:ConfigurePulse();
+    end
+    if db.pulse.locked then
+        b.onUpdate = b.animate;
+        b:Hide();
+    else
+        b.onUpdate = b.configure;
+        b:Show();
+    end
+    b:SetScript("OnUpdate", function(self)
+        self.onUpdate()
+    end)
+    b:SetNormalTexture("Interface\\Icons\\INV_Misc_QuestionMark");
+    local scalechor = CreateFrame("Frame", nil, UIParent);
+    scalechor:ClearAllPoints();
+    scalechor:SetSize(30,30);
+    scalechor:SetFrameLevel(5);
+    scalechor:EnableMouse(true);
+    scalechor:SetBackdrop({
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true,
+        tileSize = 16,
+        edgeSize = 16,
+        insets = {
+                left = 5,
+                right = 5,
+                top = 5,
+                bottom = 5
+        },
+    });
+    scalechor:SetBackdropColor(0.1, 0.1, 0.3);
+    scalechor:SetPoint("CENTER", b, "CENTER", 0, 0);
+    scalechor:RegisterForDrag("LEFTBUTTON");
+    scalechor.checkWidths = function()
+        if b:GetHeight() > b:GetWidth() then
+            b:SetWidth(b:GetHeight());
+        else
+            b:SetHeight(b:GetWidth());
+        end
+    end
+    scalechor.onUpdate = function() end;
+    scalechor:SetScript("OnUpdate", function(self) self.onUpdate() end);
+    scalechor:SetScript("OnDragStart", function(self)
+        b:StartSizing("BOTTOMRIGHT");
+        b.anchor:ClearAllPoints();
+        b.anchor:SetPoint("CENTER", b, "CENTER", 0, 0);
+        self.onUpdate = self.checkWidths;
+    end)
+    scalechor:SetScript("OnDragStop", function(self)
+        b:StopMovingOrSizing();
+        db.pulse.size = b:GetHeight();
+        b.anchor:ClearAllPoints();
+        b.anchor:StartMoving();
+        b.anchor:StopMovingOrSizing();
+        b:ClearAllPoints();
+        b:SetPoint("CENTER", b.anchor, "CENTER", 0, 0);
+        b.anchor:EnableMouse(true);
+        ploc.point, _, ploc.relPoint, ploc.x, ploc.y = b.anchor:GetPoint();
+        self.onUpdate = function() end
+    end);
+    
+    b.anchor:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOMRIGHT")
+	GameTooltip:AddLine(L["CDT Pulse Anchor"])
+	GameTooltip:AddLine(L["Drag this to reposition the pulse icon."])
+	GameTooltip:AddLine(L["Shift+Click this to lock it in position."])
+	GameTooltip:Show()
+    end)
+
+    b.anchor:SetScript("OnLeave", function(self)
+        GameTooltip:Hide();
+    end);
+
+    scalechor:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOMRIGHT")
+	GameTooltip:AddLine(L["CDT Pulse Size Anchor"])
+	GameTooltip:AddLine(L["Drag this to resize the the pulse icon."])
+	GameTooltip:Show();
+    end);
+
+    scalechor:SetScript("OnLeave", function()
+        GameTooltip:Hide();
+    end);
+
+    b.anchor:SetScript("OnMouseUp", function()
+        if IsShiftKeyDown() then
+            cdt:LockPluseIcon(true);
+        end
+    end)
+
+    b.scaleanchor = scalechor;
+    self.pulse = b;
+    self:LockPluseIcon(db.pulse.locked);
 end
 
 function cdt:LockPluseIcon(locked)
+    if locked then
+        self.pulse.onUpdate = self.pulse.animate;
+        self.pulse.anchor:Hide();
+        self.pulse.scaleanchor:Hide();
+        db.pulse.locked = true;
+    else
+        self.pulse.onUpdate = self.pulse.configure;
+        self.pulse.anchor:Show();
+        self.pulse.scaleanchor:Show();
+        self.pulse:Show();
+        db.pulse.locked = false;
+    end
+end
 
+function cdt:ConfigurePulse()
+    self:AnimatePulse(true);
+end
+
+function cdt:AnimatePulse(config)
+    local now = GetTime();
+    local anim = self.pulse.animating and (now - self.pulse.pulsedAt);
+    local pulsedb = db.pulse;
+
+    if anim then
+        local fadeout = (not self.queue.isEmpty and pulsedb.fadeout) or pulsedb.min;
+        self.pulse:SetAlpha((anim < pulsedb.fadein) and anim * pulsedb.alpha / pulsedb.fadein 
+        or ( anim < fadeout )	and ( fadeout - anim ) * pulsedb.alpha / ( fadeout )
+        or 0 );
+
+        if anim >= fadeout then
+            self.pulse.pulsedAt = nil;
+            self.pulse.animating = false;
+        end
+    elseif not self.queue.isEmpty then
+        local skill, icon = self.queue:pop();
+        self.announce.text:SetText(string.format(db.announce.announceString, skill));
+        self.announce.last = GetTime();
+        self.announce.alpha = 1;
+        self.announce.frame:Show();
+        self.pulse.animating = true;
+        self.pulse.pulsedAt = now;
+        self.pulse:SetNormalTexture(icon);
+
+        if db.sound then
+            PlaySound("Deathbind Sound");
+        end
+    elseif config then
+        self.pulse.pulsedAt = GetTime();
+        self.pulse.animating = true;
+    else
+        self.pulse:Hide();
+    end
 end

@@ -1,4 +1,5 @@
-local L = LibStub("AceLocale-3.0"):NewLocale("CooldownTimers3", "enUS", true)
+local addonName, cdt = ...;
+local L = LibStub("AceLocale-3.0"):NewLocale(addonName, "enUS", true)
 	if not L then return end
 --options
 
