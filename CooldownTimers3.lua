@@ -1,5 +1,5 @@
 local addonName, cdt = ...;
-cdt = LibStub("AceAddon-3.0"):NewAddon(cdt, addonName, "AceEvent-3.0", "AceComm-3.0", "AceSerializer-3.0", "AceHook-3.0", "AceConsole-3.0");
+cdt = LibStub("AceAddon-3.0"):NewAddon(cdt, addonName, "AceEvent-3.0", "AceComm-3.0", "AceSerializer-3.0", "AceHook-3.0", "AceConsole-3.0", "AceTimer-3.0");
 local CallbackHandler = LibStub("CallbackHandler-1.0");
 cdt.version = GetAddOnMetadata(addonName, "version");
 cdt.reversion = tonumber(("$Revision$"):match("%d+"));
@@ -9,7 +9,8 @@ local SM = LibStub("LibSharedMedia-3.0")
 local LDB = LibStub("LibDataBroker-1.1", true);
 local icon = LibStub("LibDBIcon-1.0", true);
 local db;
-local barlist = {}
+local barlist = {};
+local timerlist = {};--for acetimer
 
 local new, del
 do
@@ -129,7 +130,6 @@ function cdt:OnInitialize()
         defaults["class"]["skillgroups"] = {};
     --end
 
-
     self.db = LibStub("AceDB-3.0"):New("CooldownTimersDB", defaults, "Default");
     db = self.db.profile;
 
@@ -137,11 +137,13 @@ function cdt:OnInitialize()
     self.db.RegisterCallback(self, "OnProfileReset", "OnProfileChanged");
     self.db.RegisterCallback(self, "OnProfileCopied", "OnProfileChanged");
     
-    SM:Register("statusbar", "Smooth", "Interface\\AddOns\\CooldownTimers3\\textures\\smooth");
-    SM:Register("statusbar", "Cilo", "Interface\\AddOns\\CooldownTimers3\\textures\\cilo");
-    SM:Register("statusbar", "BantoBar", "Interface\\AddOns\\CooldownTimers3\\textures\\bar");
+    SM:Register("statusbar", "Smooth", "Interface\\AddOns\\"..addonName.."\\textures\\smooth");
+    SM:Register("statusbar", "Cilo", "Interface\\AddOns\\"..addonName.."\\textures\\cilo");
+    SM:Register("statusbar", "BantoBar", "Interface\\AddOns\\"..addonName.."\\textures\\bar");
 
     self.callbacks = CallbackHandler:New(self);
+
+    --add options
 
     self:CreateLDB();
 end
@@ -188,6 +190,8 @@ function cdt:OnEnable()
     for k, v in pairs(db.groups) do
         self:CreateGroupHeader(k, v)
     end
+
+    --update config
     self:FixGroups();
     
     self.bars = {};
@@ -282,6 +286,7 @@ function cdt:OnCommOffset(commType, sender, offset)
     
     --"cdt-req-sender"
     if self.offsets[sender].x < 5 then
+        --self:Fire("OnCommReqoffsets")
     elseif self.offsets[sender].x >= 5 then
     end
 end
@@ -305,8 +310,10 @@ function cdt:OnCommKill()
 
 end
 
-function cdt:OnCommReqoffsets()
-
+function cdt:OnCommReqoffsets(commType, sender, ...)
+    if not sender or sender == UnitName("player") then
+        self:Party()
+    end
 end
 
 -----------------------------------------------------------
@@ -336,6 +343,7 @@ function cdt:PLAYER_ENTERING_WORLD()
     self:ResetCooldowns();
     if GetNumPartyMembers() > 0 then
         self:Party();
+        self:RequestOffsets();
     end
 end
 
@@ -348,6 +356,10 @@ function cdt:Party()
             self.offsets[k] = del(v)
         end
     end
+end
+
+function cdt:RequestOffsets(...)
+
 end
 
 function cdt:SPELL_UPDATE_COOLDOWN()
@@ -630,123 +642,151 @@ function cdt:PopulatePetCooldowns()
     self:PET_BAR_UPDATE_COOLDOWN();
 end
 
-function cdt:OnSpellFail()
+function cdt:OnSpellFail(event, ...)
+    local type, _, _, _, srcFlag = select(2, ...);
 
 end
 
 -----------------------------------------------------
 -- bar handling
 -----auto adjust bar position
+local barSorter, SetGradient, SetFade, barUpdade, rearrangeBars 
+do
+    local function barSorter(a, b)
+        return a.remaining < b.remaining and true or false;
+    end
 
-local function barSorter(a, b)
-    return a.remaining < b.remaining and true or false;
-end
+    local cachegradient = {};
+    local function SetGradient(bar, c1, c2, ...)
+        if not bar then return end
+        local gtable = new();
+        local gradientid = nil;
+        if type(c1) == "number" then
+            local n = select("#", ...);
+            gtable[1] = new();
+            gtable[1][1] = c1;
+            gtable[1][2] = c2;
+            gtable[1][3] = select(1, ...);
+            gradientid = string.format("%d%d%d", c1, c2, gtable[1][3]);
 
-local cachegradient = {};
-local function SetGradient(bar, c1, c2, ...)
-    if not bar then return end
-    local gtable = new();
-    local gradientid = nil;
-    if type(c1) == "number" then
-        local n = select("#", ...);
-        gtable[1] = new();
-        gtable[1][1] = c1;
-        gtable[1][2] = c2;
-        gtable[1][3] = select(1, ...);
-        gradientid = string.format("%d%d%d", c1, c2, gtable[1][3]);
+            for i = 2, n, 3 do
+                local r, g, b = select(i, ...);
+                if r and g and b then
+                    local t = new();
+                    t[1], t[2], t[3] = r, g, b;
+                    tinsert(gtable, t);
+                    gradientid = string.format("%s_%d%d%d", gradientid, r, g, b);
+                else
+                    break;
+                end
+            end
+        end
 
-        for i = 2, n, 3 do
-            local r, g, b = select(i, ...);
-            if r and g and b then
-                local t = new();
-                t[1], t[2], t[3] = r, g, b;
-                tinsert(gtable, t);
-                gradientid = string.format("%s_%d%d%d", gradientid, r, g, b);
+        local max = #gtable;
+        for i = 1, max do
+            if not gtable[i][4] then
+                gtable[i][4] = 1
+            end
+            gtable[i][5] = (i - 1) / (max - 1);
+        end
+
+        if bar.gradienttable then
+            for k, v in pairs(bar.gradienttable) do
+                v = del(v);
+            end
+            bar.gradienttable = del(bar.gradienttable);
+        end
+
+        bar.gradienttable = gtable;
+        bar.gradient = true;
+        bar.gradientid = gradientid;
+
+        if not cachegradient[gradientid] then
+            cachegradient[gradientid] = {}
+        end
+
+        bar:SetColor(unpack(gtable[1], 1, 4));
+        return true
+    end
+    
+    local function SetFade(bar, time)
+        bar:Set("fadetime", time);
+        bar:Set("fadeout", true);
+        bar:Set("stayonscreen", time < 0);
+        bar:Set("fading", nil);
+    end
+    
+    local function UpdateFade(bar)
+        if not bar:Get("fading") then return end
+        if bar:Get("stayonscreen") then return end
+
+        if bar:Get("fadeelapsed") > bar:Get("time") then
+            bar:Set("fading", nil);
+            bar:Set("fade:starttime", nil);
+            bar:Set("fade:endtime", 0);
+            --bar.candyBarBar:Hide ?
+        end
+    end
+
+    local function barUpdade(bar)
+        --gradientBar;
+        local colors = bar:Get("colors");
+        local r1, g1, b1, r2, g2, b2 = unpack(colors);
+        local exp = bar:Get("duration");
+        local p = floor((bar.remaining / exp) * 100) / 100;
+        if bar.gradient then
+            if not cachegradient[bar.gradientid][p] then
+                local gstart, gend, gp
+                for i = 1, #bar.gradienttable - 1 do
+                    if bar.gradienttable[i][5] < p and p <= bar.gradienttable[i+1][5] then
+                        gstart = bar.gradienttable[i];
+                        gend = bar.gradienttable[i + 1];
+                        gp = (p - gstart[5]) / (gend[5] - gstart[5])
+                    end
+                end
+                if gstart and gend then
+                    cachegradient[bar.gradientid][p] = new();
+                    local i;
+                    for i = 1, 4 do
+                        cachegradient[bar.gradientid][p][i] = gstart[i]*(1-gp) + gend[i]*(gp)
+                    end
+                end
+            end
+            if cachegradient[bar.gradientid][p] then
+                bar:SetColor(unpack(cachegradient[bar.gradientid][p], 1, 4));
+            end
+        end
+
+        --TODO: add fadeout
+        --[[if bar:Get("fading") and not bar:Get("stayonscreen") then
+            bar:Set("fadeelapsed", bar.remaining);
+            UpdateFade(bar);
+        end]]
+    end
+
+    local function rearrangeBars()
+        local tmp = new();
+        for k, v in pairs(barlist) do
+            tmp[#tmp + 1] = v;
+        end
+        table.sort(tmp, barSorter);
+        local lastBar = {};
+        for i, bar in next, tmp do
+            bar:ClearAllPoints();
+            bar:Hide();
+            local g = bar:Get("group");
+            if not lastBar[g] then
+                bar:SetPoint("BOTTOM", cdt.anchors[g], 0, -15);  
             else
-                break;
+                bar:SetPoint("TOPLEFT", lastBar[g], "BOTTOMLEFT");
+                bar:SetPoint("TOPRIGHT", lastBar[g], "BOTTOMRIGHT");
             end
+            lastBar[g] = bar;
+            bar:Show();
         end
-    end
-
-    local max = #gtable;
-    for i = 1, max do
-        if not gtable[i][4] then
-            gtable[i][4] = 1
-        end
-        gtable[i][5] = (i - 1) / (max - 1);
-    end
-
-    if bar.gradienttable then
-        for k, v in pairs(bar.gradienttable) do
-            v = del(v);
-        end
-        bar.gradienttable = del(bar.gradienttable);
-    end
-
-    bar.gradienttable = gtable;
-    bar.gradient = true;
-    bar.gradientid = gradientid;
-
-    if not cachegradient[gradientid] then
-        cachegradient[gradientid] = {}
-    end
-
-    bar:SetColor(unpack(gtable[1], 1, 4));
-    return true
-end
-
-local function gradientBar(bar)
-    local colors = bar:Get("colors");
-    local r1, g1, b1, r2, g2, b2 = unpack(colors);
-    local exp = bar:Get("duration");
-    local p = floor((bar.remaining / exp) * 100) / 100;
-    if bar.gradient then
-        if not cachegradient[bar.gradientid][p] then
-            local gstart, gend, gp
-            for i = 1, #bar.gradienttable - 1 do
-                if bar.gradienttable[i][5] < p and p <= bar.gradienttable[i+1][5] then
-                    gstart = bar.gradienttable[i];
-                    gend = bar.gradienttable[i + 1];
-                    gp = (p - gstart[5]) / (gend[5] - gstart[5])
-                end
-            end
-            if gstart and gend then
-                cachegradient[bar.gradientid][p] = new();
-                local i;
-                for i = 1, 4 do
-                    cachegradient[bar.gradientid][p][i] = gstart[i]*(1-gp) + gend[i]*(gp)
-                end
-            end
-        end
-        if cachegradient[bar.gradientid][p] then
-            bar:SetColor(unpack(cachegradient[bar.gradientid][p], 1, 4));
-        end
+        del(tmp);
     end
 end
-
-local function rearrangeBars()
-    local tmp = new();
-    for k, v in pairs(barlist) do
-        tmp[#tmp + 1] = v;
-    end
-    table.sort(tmp, barSorter);
-    local lastBar = {};
-    for i, bar in next, tmp do
-        bar:ClearAllPoints();
-        bar:Hide();
-        local g = bar:Get("group");
-        if not lastBar[g] then
-            bar:SetPoint("BOTTOM", cdt.anchors[g], 0, -15);  
-        else
-            bar:SetPoint("TOPLEFT", lastBar[g], "BOTTOMLEFT");
-            bar:SetPoint("TOPRIGHT", lastBar[g], "BOTTOMRIGHT");
-        end
-        lastBar[g] = bar;
-        bar:Show();
-    end
-    del(tmp);
-end
-
 function cdt:SetUpBar(skillName, skillOptions, duration)
     local group = db.groups[skillOptions.group];
     if skillOptions.share and next(self.offsets) then
@@ -785,7 +825,6 @@ function cdt:SetUpBar(skillName, skillOptions, duration)
         bar:Set("colors", colors);
         bar:Set("barName", barname);
         bar:Set("skillName", skillName or skillOptions.name);
-        bar:Set("fade", 1);
         bar:Set("icon", skillOptions.icon)
         bar:Set("duration", duration);
         bar:SetScale(group.scale or db.barOptions.scale); 
@@ -793,14 +832,15 @@ function cdt:SetUpBar(skillName, skillOptions, duration)
         bar:SetDuration(duration);
         bar:SetTimeVisibility(true);
         bar:SetLabel(skillOptions.name or skillName);
+        SetFade(bar, skillOptions.fade or group.fade or db.barOptions.scale)
         SetGradient(bar, unpack(colors))
         --add update func
-        bar:AddUpdateFunction(gradientBar);
+        bar:AddUpdateFunction(barUpdade);
         bar:Start();
         self.bars[skillName] = barname;
     else
        --create a new candy bar 
-       print(123131)
+       print("Group Timers bar, coming soon")
     end
     
     rearrangeBars();
@@ -926,7 +966,24 @@ function cdt:CreateGroupHeader(group, info)
 end
 
 function cdt:FixGroups()
-
+    for k, v in pairs(self.db.class.cooldowns) do
+        if not v.group or not db.groups[v.group] or db.groups[v.group].disabled then
+            self:Print(k, L["moved from group"], v.group, L["to"], "CDT");
+            v.group = "CDT";
+        end
+    end
+    for k, v in pairs(self.db.char.petcooldowns) do
+        if not v.group or not db.groups[v.group] or db.groups[v.group].disabled then
+            self:Print(k, L["moved from group"], v.group, L["to"], "CDT");
+            v.group = "CDT";
+        end
+    end
+    for k, v in pairs(db.itemcooldowns) do
+        if not v.group or not db.groups[v.group] or db.groups[v.group].disabled then
+            self:Print(k, L["moved from group"], v.group, L["to"], "CDT");
+            v.group = "CDT";
+        end
+    end
 end
 
 function cdt:GetOffset(bar, group, groupName)
@@ -943,6 +1000,7 @@ function cdt:KillAllBars()
     end
 end
 
+--CandyBar-3.0: LibCandyBar_Stop callback;
 function cdt:barStopped(event, bar)
     local skillName = bar:Get("skillName"); 
     local barName = self.bars[skillName];

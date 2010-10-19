@@ -2,86 +2,82 @@ local addonName, cdt = ...
 local SM = LibStub("LibSharedMedia-3.0");
 local L = LibStub("AceLocale-3.0"):GetLocale(addonName);
 local optGetter, optSetter
-local strfind = string.find
 
 --get libSM index val
 local function GetLSMIndex(t, value)
-	for k, v in pairs(SM:List(t)) do
-		if v == value then
-			return k
-		end
-	end
-	return nil
+    for k, v in pairs(SM:List(t)) do
+        if v == value then
+            return k
+        end
+    end
+    return nil
 end
 
 do
-	function optGetter(info)
-		local key = info[#info]
-		return db[key]
-	end
+    function optGetter(info)
+        local key = info[#info]
+        return db[key]
+    end
 
-	function optSetter(info, v)
-		local key = info[#info]
-		db[key] = v;
-	end
+    function optSetter(info, v)
+        local key = info[#info]
+        db[key] = v;
+    end
 end
 
 local _order = 0
 local function order()
-	_order = _order + 1
-	return _order
+    _order = _order + 1
+    return _order
 end
 
 local _spaceCount = 0
 local function AddSpacer()
-	_spaceCount = _spaceCount + 1
-	local spacer = "spacer".._spaceCount
-	spacer = {
-		order = order(),
-		type = "description",
-		name = "",
-	}
-end
-local function GetMinimapAttachedStatus()
-	return CDT:IsFuBarMinimapAttached() or CDT.db.profile.fubar.hideMinimapButton
+    _spaceCount = _spaceCount + 1
+    local spacer = "spacer".._spaceCount
+    spacer = {
+        order = order(),
+        type = "description",
+        name = "",
+    }
 end
 
 local cdtgroups = {}
 local function getGroups()
-	if not next(cdtgroups) then
-		for k, v in pairs(CDT.db.profile.groups) do
-			if not v.diabled then
-				tinsert(cdtgroups, k)
-			end
-		end
-	end
-	return cdtgroups
+    if not next(cdtgroups) then
+        for k, v in pairs(cdt.db.profile.groups) do
+            if not v.diabled then
+                tinsert(cdtgroups, k)
+            end
+        end
+    end
+    return cdtgroups
 end
 
 local cdtskills = {}
 local function getSkills()
-	if not next(cdtskills) then
-		for k in pairs(CDT.db.class.cooldowns) do
-			tinsert(cdtskills, k)
-		end
-	end
-	return cdtskills
+    if not next(cdtskills) then
+        for k in pairs(cdt.db.class.cooldowns) do
+            tinsert(cdtskills, k)
+        end
+    end
+    return cdtskills
 end
 
 local cdtitems = {}
 local function getItems()
-	if not next(cdtitems) then
-		for k in pairs (CDT.db.profile.itemcooldowns) do
-			tinsert (cdtitems, k)
-		end
-	end
-	return cdtitems
+    if not next(cdtitems) then
+        for k in pairs (cdt.db.profile.itemcooldowns) do
+            tinsert (cdtitems, k)
+        end
+    end
+    return cdtitems
 end
 
 local condensegroup = {}
 local function getcondensegroup()
-	local db = CDT.db
-	CDT.groups = {}
+	local db = cdt.db
+	cdt.groups = {}
 	for _,s in pairs(db.class.skillgroups) do
 		if not CDT.groups[s] then
 			CDT.groups[s] = {}
@@ -1276,11 +1272,11 @@ local function getOptions()
 
 	end
 
-	options.args.Profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(CooldownTimers.db)
+	options.args.Profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(cdt.db)
 	options.args.Profiles.order = order()
 	return options
 end
 
-function CDT:SetupOptions()
-	LibStub("AceConfig-3.0"):RegisterOptionsTable("CooldownTimers3", getOptions)
+function cdt:SetupOptions()
+	LibStub("AceConfig-3.0"):RegisterOptionsTable(addonName, getOptions)
 end
