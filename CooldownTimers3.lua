@@ -419,7 +419,6 @@ function cdt:BAG_UPDATE_COOLDOWN()
                     db.itemcooldowns[name].group = "CDT";
                 end
             end
-
             if not db.itemcooldowns[name].disabled and db.itemcooldowns[name].start ~= start then
                 db.itemcooldowns[name].start = start;
                 if db.autogroup then
@@ -463,7 +462,6 @@ function cdt:BAG_UPDATE_COOLDOWN()
                         db.itemcooldowns[name].group = "CDT";
                     end
                 end
-
                 if not db.itemcooldowns[name].disabled and db.itemcooldowns[name].start ~= start then
                     db.itemcooldowns[name].start = start;
                     if db.autogroup then
@@ -643,8 +641,13 @@ function cdt:PopulatePetCooldowns()
 end
 
 function cdt:OnSpellFail(event, ...)
-    local type, _, _, _, srcFlag = select(2, ...);
-
+    local type, _, _, srcFlag = select(2, ...);
+    --print(event, ...)
+    if ((type ~= "SPELL_CAST_FAILED") or not CombatLog_Object_IsA(srcFlags, COMBATLOG_FILTER_MINE)) then
+        return
+    end
+    local skill, _, reason = select(10, ...);
+    print(reason, SPELL_FAILED_NOT_READY);
 end
 
 -----------------------------------------------------
@@ -652,12 +655,12 @@ end
 -----auto adjust bar position
 local barSorter, SetGradient, SetFade, barUpdade, rearrangeBars 
 do
-    local function barSorter(a, b)
+    function barSorter(a, b)
         return a.remaining < b.remaining and true or false;
     end
 
     local cachegradient = {};
-    local function SetGradient(bar, c1, c2, ...)
+    function SetGradient(bar, c1, c2, ...)
         if not bar then return end
         local gtable = new();
         local gradientid = nil;
@@ -709,14 +712,14 @@ do
         return true
     end
     
-    local function SetFade(bar, time)
+    function SetFade(bar, time)
         bar:Set("fadetime", time);
         bar:Set("fadeout", true);
         bar:Set("stayonscreen", time < 0);
         bar:Set("fading", nil);
     end
     
-    local function UpdateFade(bar)
+    function UpdateFade(bar)
         if not bar:Get("fading") then return end
         if bar:Get("stayonscreen") then return end
 
@@ -728,7 +731,7 @@ do
         end
     end
 
-    local function barUpdade(bar)
+    function barUpdade(bar)
         --gradientBar;
         local colors = bar:Get("colors");
         local r1, g1, b1, r2, g2, b2 = unpack(colors);
@@ -764,7 +767,7 @@ do
         end]]
     end
 
-    local function rearrangeBars()
+    function rearrangeBars()
         local tmp = new();
         for k, v in pairs(barlist) do
             tmp[#tmp + 1] = v;
@@ -990,7 +993,7 @@ function cdt:GetOffset(bar, group, groupName)
 
 end
 
-function cdt:FlashBar()
+function cdt:FlashBar(skill, bar, scale)
 
 end
 
