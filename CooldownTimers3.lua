@@ -815,15 +815,6 @@ function cdt:SetUpBar(skillName, skillOptions, duration)
     if skillOptions.share and next(self.offsets) then
         self:SendComm("New", skillName, skillOptions.icon, skillOptions.start, duration);
     end
-
-if self.baralphas[bar][1] >= 1.5 then
-		self.baralphas[bar][2] = -self.baralphas[bar][2]
-	elseif self.baralphas[bar][1] <= 1 then
-		self:CancelScheduledEvent("cdt-flash-"..skill)
-		del(self.baralphas[bar])
-		self.baralphas[bar] = nil
-		self:SetCandyBarScale(bar, scale)
-	end
     local r1, g1, b1, a1 = unpack(self.db.profile.barOptions.colors.colors1)
     local r2, g2, b2, a2 = unpack(self.db.profile.barOptions.colors.colors2)
     local colors;
