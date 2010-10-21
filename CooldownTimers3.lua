@@ -997,7 +997,6 @@ function cdt:CreateGroupHeader(group, info)
     else
         f:Show()
     end
-    f:Show();
     self.anchors[group] = f;
 end
 
