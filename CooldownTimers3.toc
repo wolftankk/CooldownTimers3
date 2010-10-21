@@ -21,4 +21,4 @@ locale\Locale-enUS.lua
 locale\Locale-zhCN.lua
 
 CooldownTimers3.lua
-#options.lua
+options.lua

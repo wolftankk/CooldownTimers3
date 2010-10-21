@@ -117,6 +117,11 @@ local defaults = {
     class = {}
 }
 
+local function openConfigPanel()
+    LibStub("AceConfigDialog-3.0"):SetDefaultSize(addonName, 770, 590)
+    LibStub("AceConfigDialog-3.0"):Open(addonName)
+end
+
 function cdt:OnInitialize()
     --update class data  
     --[[if pclass == "HUNTER" then
@@ -133,7 +138,7 @@ function cdt:OnInitialize()
     self.db = LibStub("AceDB-3.0"):New("CooldownTimersDB", defaults, "Default");
     db = self.db.profile;
 
-    self.db.RegisterCallback(self, "OnProfileChanged", "OnProfileChanged");
+    self.db.RegisterCallback(self, "OnProfileChanged");
     self.db.RegisterCallback(self, "OnProfileReset", "OnProfileChanged");
     self.db.RegisterCallback(self, "OnProfileCopied", "OnProfileChanged");
     
@@ -144,8 +149,10 @@ function cdt:OnInitialize()
     self.callbacks = CallbackHandler:New(self);
 
     --add options
-
+    self:SetupOptions();
     self:CreateLDB();
+
+    self:RegisterChatCommand("cdt", openConfigPanel)
 end
 
 local function qpush(self, ...)
@@ -221,8 +228,7 @@ function cdt:OnDisable()
     self:UnregisterAllEvents();
 end
 
-function cdt:OnProfileChanged()
-
+function cdt:OnProfileChanged(key, name)
 end
 
 function cdt:CreateLDB()
@@ -233,7 +239,7 @@ function cdt:CreateLDB()
             text = "CooldownTimers3",
             icon = "Interface\\Icons\\INV_Misc_PocketWatch_02",
             OnClick = function()
-
+                openConfigPanel();
             end,
             OnEnter = function(self)
                 GameTooltip:SetOwner(self, "ANCHOR_TOPRIGHT");
@@ -248,7 +254,7 @@ function cdt:CreateLDB()
     end
 
     if icon and cdtLDB then
-        icon:Register("CooldownTimers3", cdtLDB, db.minimap);
+        icon:Register(addonName, cdtLDB, db.minimap);
     end
 end
 
@@ -1135,6 +1141,7 @@ function cdt:MakeAnnounce()
     local text = f:CreateFontString(nil, "OVERLAY", "ZoneTextFont");
     text:ClearAllPoints();
     text:SetPoint("CENTER", anchor, "CENTER", 0, 0);
+    text:SetTextColor(unpack(db.announce.fontcolor));
     f:SetAllPoints(text);
     f:SetScale(db.announce.scale);
     text:SetText(db.announce.announceString);
@@ -1169,6 +1176,22 @@ function cdt:MakeAnnounce()
     if not self.pulse then
         self:CreatePulse()
     end
+end
+
+function cdt:UpdateAnnounce()
+    if db.enabled then
+        self.announce.text:Show()
+        self.announce.anchor:Show()
+        self.announce.frame:Show()
+        self.announce.frame:SetAlpha(1)
+        self.announce.alpha = 1
+    else
+        self.announce.text:Hide()
+        self.announce.anchor:Hide()
+        self.announce.frame:Hide()
+    end
+    self.announce.frame:SetScale(db.announce.scale)
+    self.announce.text:SetTextColor(unpack(db.announce.fontcolor));
 end
 
 function cdt:CreatePulse()
@@ -1310,6 +1333,20 @@ function cdt:CreatePulse()
     b.scaleanchor = scalechor;
     self.pulse = b;
     self:LockPluseIcon(db.pulse.locked);
+end
+
+function cdt:UpdatePulse()
+    if db.profile.pulse.enabled then
+        self.pulse.onUpdate = self.pulse.configure;
+        self.pulse.anchor:Show();
+        self.pulse.scaleanchor:Show();
+        self.pulse:Show();
+    else
+        self.pulse.onUpdate = self.pulse.animate;
+        self.pulse.anchor:Hide();
+        self.pulse.scaleanchor:Hide();
+        self.pulse:Hide();
+    end
 end
 
 function cdt:LockPluseIcon(locked)
