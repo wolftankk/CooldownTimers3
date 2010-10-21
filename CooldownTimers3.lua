@@ -642,12 +642,26 @@ end
 
 function cdt:OnSpellFail(event, ...)
     local type, _, _, srcFlag = select(2, ...);
-    --print(event, ...)
-    if ((type ~= "SPELL_CAST_FAILED") or not CombatLog_Object_IsA(srcFlags, COMBATLOG_FILTER_MINE)) then
+    if ((type ~= "SPELL_CAST_FAILED") or not CombatLog_Object_IsA(srcFlags, COMBATLOG_FILTER_MINE))  then
         return
     end
     local skill, _, reason = select(10, ...);
-    print(reason, SPELL_FAILED_NOT_READY);
+    if reason ~= SPELL_FAILED_NOT_READY then
+        return
+    end
+    if not db.autogroup and self.db.class.skillgroups[skill] then
+        skill = self.db.class.skillgroups[skill]
+    end
+
+    if not self.db.class.cooldowns[skill] then return end
+    
+    local group = db.groups[self.db.class.cooldowns[skill].group];
+    local barname = self.bars[skill]; 
+    local bar = barlist[barname];
+    if self.bars[skill] and not self.baralphas[barname] then
+        self.baralphas[barname] = new(1, 0.05);
+        timerlist["cdt-flash-"..skill] = self:ScheduleRepeatingTimer("FlashBar", 0.001, {skill, bar, db.barOptions.scale});
+    end
 end
 
 -----------------------------------------------------
@@ -796,6 +810,14 @@ function cdt:SetUpBar(skillName, skillOptions, duration)
         self:SendComm("New", skillName, skillOptions.icon, skillOptions.start, duration);
     end
 
+if self.baralphas[bar][1] >= 1.5 then
+		self.baralphas[bar][2] = -self.baralphas[bar][2]
+	elseif self.baralphas[bar][1] <= 1 then
+		self:CancelScheduledEvent("cdt-flash-"..skill)
+		del(self.baralphas[bar])
+		self.baralphas[bar] = nil
+		self:SetCandyBarScale(bar, scale)
+	end
     local r1, g1, b1, a1 = unpack(self.db.profile.barOptions.colors.colors1)
     local r2, g2, b2, a2 = unpack(self.db.profile.barOptions.colors.colors2)
     local colors;
@@ -881,7 +903,9 @@ do
                 testbar = nil;
                 return;
             end
+            local barname = "cdt-test";
             local bar = candy:New(SM:Fetch("statusbar", db.groups[group].texture or db.barOptions.texture), db.groups[group].barwidth or db.barOptions.barwidth, db.groups[group].barheight or db.barOptions.barheight); 
+            --barlist[barname] = bar;
             bar:SetDuration(30);
             bar:SetScale(1);
             bar:SetIcon("Interface\\Icons\\INV_Misc_QuestionMark");
@@ -891,7 +915,16 @@ do
             bar:SetColor(1, 0, 0, 0.6);
             bar:Set("barName", "Testbar");
             bar:Start();
+            --cdt.bars["test"] = barname;
             bar:SetPoint("BOTTOM", cdt.anchors[group], 4, -15);
+            --test flash bar
+            --[[if cdt.bars["test"] and not cdt.baralphas[barname] then
+                cdt.baralphas[barname] = new(1, 0.05);
+                timerlist["cdt-flash-test"] = cdt:ScheduleRepeatingTimer(
+                "FlashBar", 0.001, {"test", bar, db.barOptions.scale}
+            );
+            end
+            ]]
             bar:Show();
             testbar = bar;
         end
@@ -964,7 +997,7 @@ function cdt:CreateGroupHeader(group, info)
     else
         f:Show()
     end
-
+    f:Show();
     self.anchors[group] = f;
 end
 
@@ -993,8 +1026,29 @@ function cdt:GetOffset(bar, group, groupName)
 
 end
 
-function cdt:FlashBar(skill, bar, scale)
+function cdt:FlashBar(args)
+    local skill, bar, scale = args[1], args[2], args[3];
+    if not self.bars[skill] or not self.baralphas[self.bars[skill]] then
+        self:CancelTimer(timerlist["cdt-flash-"..skill], true)
+        if self.baralphas[self.bars[skill]] then
+            del(self.baralphas[self.bars[skill]]);
+            self.baralphas[self.bars[skill]] = nil;
+            timerlist["cdt-flash-"..skill] = nil;
+        end
+    end
 
+    local barname = self.bars[skill];
+    self.baralphas[barname][1] = self.baralphas[barname][1] + self.baralphas[barname][2]
+    bar:SetScale(self.baralphas[barname][1] * scale);
+    if self.baralphas[barname][1] >= 1.5 then
+        self.baralphas[barname][2] = -self.baralphas[barname][2]
+    elseif self.baralphas[barname][1] <= 1 then
+        self:CancelTimer(timerlist["cdt-flash-"..skill], true)
+	del(self.baralphas[barname])
+	self.baralphas[barname] = nil
+	bar:SetScale(scale);
+        timerlist["cdt-flash-"..skill] = nil;
+    end
 end
 
 function cdt:KillAllBars()
@@ -1295,6 +1349,7 @@ function cdt:AnimatePulse(config)
         end
     elseif not self.queue.isEmpty then
         local skill, icon = self.queue:pop();
+        if skill == nil then skill = "Test" end
         self.announce.text:SetText(string.format(db.announce.announceString, skill));
         self.announce.last = GetTime();
         self.announce.alpha = 1;
