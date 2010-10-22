@@ -982,7 +982,7 @@ local function getOptions()
                     db.profile.groups[v].columns = s
             end
         end
-
+        
         --for skillgroups
         getSkills();
         getcondensegroup();

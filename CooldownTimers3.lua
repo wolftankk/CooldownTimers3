@@ -122,6 +122,7 @@ local function openConfigPanel()
     LibStub("AceConfigDialog-3.0"):Open(addonName)
 end
 
+local runeCheck;
 function cdt:OnInitialize()
     --update class data  
     --[[if pclass == "HUNTER" then
@@ -134,6 +135,33 @@ function cdt:OnInitialize()
         defaults["class"]["cooldowns"] = {}
         defaults["class"]["skillgroups"] = {};
     --end
+    --
+    if pclass == "DEATHKNIGHT" then
+        local runecd = {
+            [GetSpellInfo(50977) or "Death Gate"] = 11,
+            [GetSpellInfo(43265) or "Death and Decay"] = 11,
+            [GetSpellInfo(48263) or "Frost Presence"] = 1,
+            [GetSpellInfo(48266) or "Blood Presence"] = 1,
+            [GetSpellInfo(48265) or "Unholy Presence"] = 1, 
+            [GetSpellInfo(42650) or "Army of the Dead"] = 11,
+            [GetSpellInfo(49222) or "Bone Shield"] = 11,
+            [GetSpellInfo(47476) or "Strangulate"] = 11,
+            [GetSpellInfo(51052) or "Anti-Magic Zone"] = 11,
+            [GetSpellInfo(63560) or "Ghoul Frenzy"] = 10,
+            [GetSpellInfo(49184) or "Howling Blast"] = 8,
+            [GetSpellInfo(51271) or "Unbreakable Armor"] = 11,
+            [GetSpellInfo(55233) or "Vampiric Blood"] = 11,
+            [GetSpellInfo(48982) or "Rune Tap"] = 11,
+        }
+        
+        runeCheck = function(name, duration)
+            local rc = runecd[name];
+            if not rc or (rc <= duration and (rc > 10 or rc >= duration)) then
+                return true
+            end
+            return false
+        end
+    end
 
     self.db = LibStub("AceDB-3.0"):New("CooldownTimersDB", defaults, "Default");
     db = self.db.profile;
@@ -384,7 +412,7 @@ function cdt:SPELL_UPDATE_COOLDOWN()
         name = GetSpellBookItemName(v.id, BOOKTYPE_SPELL);
         if not v.disabled and (k == name or k == self.db.class.skillgroups[name]) then
             start, duration, enable = GetSpellCooldown(v.id, BOOKTYPE_SPELL);
-            if enable == 1 and duration > db.mintime and duration <= db.maxtime and v.start ~= start then
+            if enable == 1 and duration > db.mintime and duration <= db.maxtime and v.start ~= start and (not runeCheck or runeCheck(name, duration)) then
                 v.start = start;
                 if db.autogroup then
                     local index = floor(start * duration);
@@ -814,7 +842,7 @@ do
             local growUp = group.up or db.barOptions.up;
             if not lastBar[g] then
                 if growUp then
-                    bar:SetPoint("TOP", cdt,anchors[g], 0, 15); 
+                    bar:SetPoint("TOP", cdt.anchors[g], 0, 15); 
                 else  
                     bar:SetPoint("BOTTOM", cdt.anchors[g], 0, -15);  
                 end
