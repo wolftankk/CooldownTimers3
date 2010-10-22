@@ -810,11 +810,22 @@ do
             bar:ClearAllPoints();
             bar:Hide();
             local g = bar:Get("group");
+            local group = db.groups[g];
+            local growUp = group.up or db.barOptions.up;
             if not lastBar[g] then
-                bar:SetPoint("BOTTOM", cdt.anchors[g], 0, -15);  
+                if growUp then
+                    bar:SetPoint("TOP", cdt,anchors[g], 0, 15); 
+                else  
+                    bar:SetPoint("BOTTOM", cdt.anchors[g], 0, -15);  
+                end
             else
-                bar:SetPoint("TOPLEFT", lastBar[g], "BOTTOMLEFT");
-                bar:SetPoint("TOPRIGHT", lastBar[g], "BOTTOMRIGHT");
+                if growUp then
+                    bar:SetPoint("BOTTOMLEFT", lastBar[g], "TOPLEFT");
+                    bar:SetPoint("BOTTOMRIGHT", lastBar[g], "TOPRIGHT");
+                else
+                    bar:SetPoint("TOPLEFT", lastBar[g], "BOTTOMLEFT");
+                    bar:SetPoint("TOPRIGHT", lastBar[g], "BOTTOMRIGHT");
+                end
             end
             lastBar[g] = bar;
             bar:Show();
