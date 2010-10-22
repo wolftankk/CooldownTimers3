@@ -14,7 +14,7 @@ local timerlist = {};--for acetimer
 
 local new, del
 do
-    local list = setmetatable({}, {__mode='k'})
+    local list = setmetatable({}, {__mode='k'});
     function new(...)
         local t = next(list)
         if t then
@@ -118,7 +118,7 @@ local defaults = {
 }
 
 local function openConfigPanel()
-    LibStub("AceConfigDialog-3.0"):SetDefaultSize(addonName, 770, 590)
+    LibStub("AceConfigDialog-3.0"):SetDefaultSize(addonName, 730, 590)
     LibStub("AceConfigDialog-3.0"):Open(addonName)
 end
 
@@ -174,11 +174,19 @@ end
 
 function cdt:OnEnable()
     self:RegisterEvent("SPELL_UPDATE_COOLDOWN");  
+    self:RegisterEvent("SPELLS_CHANGED", "PopulateCooldowns");--add
     self:RegisterEvent("PLAYER_ALIVE", "PopulateCooldowns");
     self:RegisterEvent("SPELLS_CHANGED", "PopulateCooldowns");
     self:RegisterEvent("PLAYER_ENTERING_WORLD");
     self:RegisterEvent("BAG_UPDATE_COOLDOWN");
     self:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED");
+
+    --self:RegisterEvent("UNIT_ENTERED_VEHICLE");
+    --
+    --if UnitHasVehicleUI("player") then
+    --    self:RegisterEvent("ACTIONBAR_UPDATE_COOLDOWN"); 
+    --    self:RegisterEvent("UNIT_EXITED_VEHICLE");
+    --end
     if db.pulseoncooldown then
         self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED", "OnSpellFail");
     end
@@ -579,7 +587,7 @@ function cdt:PopulateCooldowns()
 
     db.cooldowns = cooldowns;
 
-    if UnitExists("pet") then
+    if UnitExists("pet") and HasPetUI() then
         self:PopulatePetCooldowns();
     end
     self:SPELL_UPDATE_COOLDOWN();
@@ -591,6 +599,11 @@ function cdt:UNIT_PET(unit)
         return
     end
     self:PopulatePetCooldowns();
+    if UnitExists("pet") and HasPetUI() then
+        self:RegisterEvent("PET_BAR_UPDATE_COOLDOWN");
+    else
+        self:UnregisterEvent("PET_BAR_UPDATE_COOLDOWN");
+    end
 end
 
 function cdt:PET_BAR_UPDATE_COOLDOWN()
@@ -608,7 +621,6 @@ function cdt:PET_BAR_UPDATE_COOLDOWN()
 end
 
 function cdt:PopulatePetCooldowns()
-    self:RegisterEvent("PET_BAR_UPDATE_COOLDOWN");
     local i = 1;
     local cooldown = GetSpellBookItemName(i, BOOKTYPE_PET);
     local last;
@@ -848,10 +860,10 @@ function cdt:SetUpBar(skillName, skillOptions, duration)
         bar:Set("barName", barname);
         bar:Set("skillName", skillName or skillOptions.name);
         bar:Set("icon", skillOptions.icon)
-        bar:Set("duration", duration);
+        bar:Set("duration", duration + skillOptions.start - GetTime());
         bar:SetScale(group.scale or db.barOptions.scale); 
         bar:SetIcon(skillOptions.icon);
-        bar:SetDuration(duration);
+        bar:SetDuration(duration + skillOptions.start - GetTime());
         bar:SetTimeVisibility(true);
         bar:SetLabel(skillOptions.name or skillName);
         SetFade(bar, skillOptions.fade or group.fade or db.barOptions.scale)
