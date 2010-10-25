@@ -114,7 +114,10 @@ local defaults = {
     char = {
         ["petcooldowns"] = {},
     },
-    class = {}
+    class = {
+        ["cooldowns"] = {},
+        ["skillgroups"] = {},
+    }
 }
 
 local function openConfigPanel()
@@ -124,18 +127,6 @@ end
 
 local runeCheck;
 function cdt:OnInitialize()
-    --update class data  
-    --[[if pclass == "HUNTER" then
-
-    elseif pclass == "SHAMAN" then
-
-    elseif pclass == "PALADIN" then
-
-    else]]
-        defaults["class"]["cooldowns"] = {}
-        defaults["class"]["skillgroups"] = {};
-    --end
-    --
     if pclass == "DEATHKNIGHT" then
         local runecd = {
             [GetSpellInfo(50977) or "Death Gate"] = 11,
@@ -208,6 +199,7 @@ function cdt:OnEnable()
     self:RegisterEvent("PLAYER_ENTERING_WORLD");
     self:RegisterEvent("BAG_UPDATE_COOLDOWN");
     self:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED");
+    --self:RegisterEvent("")
 
     --self:RegisterEvent("UNIT_ENTERED_VEHICLE");
     --
@@ -533,15 +525,13 @@ function cdt:BAG_UPDATE_COOLDOWN()
     del(cooldowns)
 end
 
-function cdt:UNIT_SPELLCAST_SUCCEEDED(unit, spell)
-    self.lastcast = spell;
+function cdt:UNIT_SPELLCAST_SUCCEEDED(event, unit, spell)
     if unit ~= "player" or spell ~= self.reset then
         return
     end
     self:ResetCooldowns();
-    self:PET_BAR_UPDATE_COOLDOWN();
-    self:BAG_UPDATE_COOLDOWN();
 end
+
 
 function cdt:ResetCooldowns()
     self:KillAllBars();
@@ -557,7 +547,7 @@ function cdt:ResetCooldowns()
 
     self:SPELL_UPDATE_COOLDOWN();
     self:BAG_UPDATE_COOLDOWN();
-    if UnitExists("pet") then
+    if UnitExists("pet") and HasPetUI() then
         self:PET_BAR_UPDATE_COOLDOWN();
     end
 end
@@ -607,6 +597,10 @@ function cdt:PopulateCooldowns()
                 elseif not db.autogroup and self.db.class.skillgroups[cooldown] and cooldowns[self.db.class.skillgroups[cooldown]] then
                     cooldowns[self.db.class.skillgroups[cooldown]].id = i;
                 end
+
+                if (cooldown == GetSpellInfo(14185) or L["Preparation"]) or (cooldown == GetSpellInfo(23989) or L["Readiness"]) or (cooldown == GetSpellInfo(11958) or L["Cold Snap"]) then
+                    self.reset = cooldown
+                end
             end
         end
         i = i + 1;
@@ -615,14 +609,14 @@ function cdt:PopulateCooldowns()
 
     db.cooldowns = cooldowns;
 
-    if UnitExists("pet") and HasPetUI() then
+    if UnitExists("pet") then
         self:PopulatePetCooldowns();
     end
     self:SPELL_UPDATE_COOLDOWN();
     self:BAG_UPDATE_COOLDOWN();
 end
 
-function cdt:UNIT_PET(unit)
+function cdt:UNIT_PET(event, unit)
     if unit ~= "player" then
         return
     end
@@ -671,8 +665,10 @@ function cdt:PopulatePetCooldowns()
                         icon = GetSpellBookItemTexture(i, BOOKTYPE_PET)
                     }
                     if not db.groups.PetCooldowns.disabled then
+                        print(333)
                         self.db.char.petcooldowns[cooldown].group = "PetCooldowns";
                     else
+                        print(222)
                         self.db.char.petcooldowns[cooldown].group = "CDT";
                     end
                 elseif self.db.char.petcooldowns[cooldown] then
@@ -1056,6 +1052,7 @@ function cdt:FixGroups()
             v.group = "CDT";
         end
     end
+
     for k, v in pairs(self.db.char.petcooldowns) do
         if not v.group or not db.groups[v.group] or db.groups[v.group].disabled then
             self:Print(k, L["moved from group"], v.group, L["to"], "CDT");
