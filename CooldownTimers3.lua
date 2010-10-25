@@ -688,7 +688,7 @@ end
 
 function cdt:OnSpellFail(event, ...)
     local type, _, _, srcFlag = select(2, ...);
-    if ((type ~= "SPELL_CAST_FAILED") or not CombatLog_Object_IsA(srcFlags, COMBATLOG_FILTER_MINE))  then
+    if (type ~= "SPELL_CAST_FAILED") or not CombatLog_Object_IsA(srcFlag, COMBATLOG_FILTER_MINE)then--) 
         return
     end
     local skill, _, reason = select(10, ...);
@@ -769,6 +769,7 @@ do
         end
 
         bar:SetColor(unpack(gtable[1], 1, 4));
+        
         return true
     end
     
@@ -780,7 +781,7 @@ do
     end
     
     function UpdateFade(bar)
-        if not bar:Get("fading") then return end
+        --[[if not bar:Get("fading") then return end
         if bar:Get("stayonscreen") then return end
 
         if bar:Get("fadeelapsed") > bar:Get("time") then
@@ -788,7 +789,7 @@ do
             bar:Set("fade:starttime", nil);
             bar:Set("fade:endtime", 0);
             --bar.candyBarBar:Hide ?
-        end
+        end]]
     end
 
     function barUpdade(bar)
