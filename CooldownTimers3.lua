@@ -665,10 +665,8 @@ function cdt:PopulatePetCooldowns()
                         icon = GetSpellBookItemTexture(i, BOOKTYPE_PET)
                     }
                     if not db.groups.PetCooldowns.disabled then
-                        print(333)
                         self.db.char.petcooldowns[cooldown].group = "PetCooldowns";
                     else
-                        print(222)
                         self.db.char.petcooldowns[cooldown].group = "CDT";
                     end
                 elseif self.db.char.petcooldowns[cooldown] then
