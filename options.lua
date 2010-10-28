@@ -189,6 +189,17 @@ local function getOptions()
                                     end
                                 end,
                             },
+							groupcooldowns = {
+								type= "toggle",
+                                name = "Group cooldowns",
+                                desc = "Enable/Disable cdt3 receive the cooldowns info of grouper by the sync",
+                                order = order(),
+                                width = "full",
+                                get = function() return db.groups.GroupCooldowns.disabled end,
+                                set = function(_, v) db.groups.GroupCooldowns.disabled = v
+                                    groups.GroupCooldowns.disabled = v
+                                end,
+							},
                             fixgroups = {
                                 type = "execute",
                                 name = "Fix Groups",
