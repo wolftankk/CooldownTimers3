@@ -12,6 +12,10 @@ local db;
 local barlist = {};
 local timerlist = {};--for acetimer
 
+local cooldowns = {};
+local petcooldowns = {};
+local itemcooldowns = {};
+
 local new, del
 do
     local list = setmetatable({}, {__mode='k'});
@@ -87,7 +91,6 @@ local defaults = {
         ["maxtime"] = 3600,
         ["mintime"] = 1.5,
         ["itemgroups"] = {},
-        ["itemcooldowns"] = {},
         groupcooldowns = {
         },
         pulseoncooldown = true,
@@ -111,11 +114,7 @@ local defaults = {
             hide = false,
         }
     },
-    char = {
-        ["petcooldowns"] = {},
-    },
     class = {
-        ["cooldowns"] = {},
         ["skillgroups"] = {},
     }
 }
@@ -153,10 +152,10 @@ function cdt:OnInitialize()
             return false
         end
     end
-
+		
     self.db = LibStub("AceDB-3.0"):New("CooldownTimersDB", defaults, "Default");
     db = self.db.profile;
-
+		
     self.db.RegisterCallback(self, "OnProfileChanged");
     self.db.RegisterCallback(self, "OnProfileReset", "OnProfileChanged");
     self.db.RegisterCallback(self, "OnProfileCopied", "OnProfileChanged");
@@ -166,9 +165,9 @@ function cdt:OnInitialize()
     SM:Register("statusbar", "BantoBar", "Interface\\AddOns\\"..addonName.."\\textures\\bar");
 
     self.callbacks = CallbackHandler:New(self);
-
+	
     --add options
-    self:SetupOptions();
+    --self:SetupOptions();
     self:CreateLDB();
 
     self:RegisterChatCommand("cdt", openConfigPanel)
@@ -194,10 +193,9 @@ end
 function cdt:OnEnable()
     self:RegisterEvent("SPELL_UPDATE_COOLDOWN");  
     self:RegisterEvent("SPELLS_CHANGED", "PopulateCooldowns");--add
-    self:RegisterEvent("PLAYER_ALIVE", "PopulateCooldowns");
-    self:RegisterEvent("SPELLS_CHANGED", "PopulateCooldowns");
     self:RegisterEvent("PLAYER_ENTERING_WORLD");
-    self:RegisterEvent("BAG_UPDATE_COOLDOWN");
+    --[[
+		self:RegisterEvent("BAG_UPDATE_COOLDOWN");
     self:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED");
     --self:RegisterEvent("")
 
@@ -212,7 +210,7 @@ function cdt:OnEnable()
     end
     self:RegisterEvent("PARTY_MEMBERS_CHANGED", "Party");
     self:RegisterEvent("UNIT_PET");
-
+		--]]
     candy.RegisterCallback(self, "LibCandyBar_Stop", "barStopped");
     --cdt.RegisterCallback(self, "OnCommNew");
     --cdt.RegisterCallback(self, "OnCommOffset");
@@ -239,12 +237,12 @@ function cdt:OnEnable()
     if not self.announce then
         self:MakeAnnounce();
     end
-    if db.autogroup then
+    --[[if db.autogroup then
         self:SecureHook("UseAction");
         self:SecureHook("UseContainerItem");
         self:SecureHook("UseInventoryItem");
         self:SecureHook("UseItemByName");
-    end
+    end]]
 
     --sync your cooldown data
     self:RegisterComm("CooldownTimers3");
@@ -374,11 +372,14 @@ end
 -----------------------------------------------------------
 --event
 function cdt:PLAYER_ENTERING_WORLD()
-    self:ResetCooldowns();
-    if GetNumPartyMembers() > 0 then
-        self:Party();
-        self:RequestOffsets();
-    end
+	self:ResetCooldowns();
+  if GetNumPartyMembers() > 0 then
+    self:Party();
+    self:RequestOffsets();
+  end
+
+	--update cache
+	self:PopulateCooldowns();
 end
 
 function cdt:Party()
@@ -397,38 +398,41 @@ function cdt:RequestOffsets(...)
 end
 
 function cdt:SPELL_UPDATE_COOLDOWN()
-    local start, duration, enable, name;
-    local cooldowns = new();
-
-    for k, v in pairs(self.db.class.cooldowns) do
-        name = GetSpellBookItemName(v.id, BOOKTYPE_SPELL);
-        if not v.disabled and (k == name or k == self.db.class.skillgroups[name]) then
-            start, duration, enable = GetSpellCooldown(v.id, BOOKTYPE_SPELL);
-            if enable == 1 and duration > db.mintime and duration <= db.maxtime and v.start ~= start and (not runeCheck or runeCheck(name, duration)) then
-                v.start = start;
-                if db.autogroup then
-                    local index = floor(start * duration);
-                    if not cooldowns[index] then
-                        cooldowns[index] = new();
-                        cooldowns[index].name = k;
-                        cooldowns[index].spell = v;
-                        cooldowns[index].duration = duration;
-                    end
-                    if name == self.lastcast then
-                        cooldowns[index].name = k;
-                        cooldowns[index].spell = v;
-                    end
-                else
-                    self:SetUpBar(k, v, duration); 
-                end
-            end
-        end
-    end
-    for k, v in pairs(cooldowns) do
-        self:SetUpBar(v.name, v.spell, v.duration);
-        del(cooldowns[k])
-    end
-    del(cooldowns);
+  local start, duration, enable, name;
+  local cache = new();
+		
+		--cache spell
+  for k, v in pairs(cooldowns) do
+      name = GetSpellBookItemName(v.id, BOOKTYPE_SPELL);
+				--or k == self.db.class.skillgroups[name]
+      if not v.disabled and (k == name) then
+				start, duration, enable = GetSpellCooldown(v.id, BOOKTYPE_SPELL);
+				if enable == 1 and duration > db.mintime and duration <= db.maxtime and v.start ~= start and (not runeCheck or runeCheck(name, duration)) then
+					v.start = start;
+					if db.autogroup then
+						local index = floor(start * duration);
+						if not cache[index] then
+								cache[index] = new();
+								cache[index].name = k;
+								cache[index].spell = v;
+								cache[index].duration = duration;
+						end
+						if name == self.lastcast then
+								cache[index].name = k;
+								cache[index].spell = v;
+						end
+					else
+						self:SetUpBar(k, v, duration); 
+					end
+			end
+		end
+  end
+		
+	for k, v in pairs(cache) do
+			self:SetUpBar(v.name, v.spell, v.duration);
+			del(cache[k])
+	end
+  del(cache);
 end
 
 function cdt:BAG_UPDATE_COOLDOWN()
@@ -442,34 +446,34 @@ function cdt:BAG_UPDATE_COOLDOWN()
             if db.itemgroups[name] then
                 name = db.itemgroups[name]
             end
-            if not db.itemcooldowns[name] then
-                db.itemcooldowns[name] = {
+            if not itemcooldowns[name] then
+                itemcooldowns[name] = {
                     ["disabled"] = false,
                     ["icon"] = GetInventoryItemTexture("player", i);
                 }
                 if not db.groups.ItemCooldowns.disabled then
-                    db.itemcooldowns[name].group = "ItemCooldowns";
+                    itemcooldowns[name].group = "ItemCooldowns";
                 else
-                    db.itemcooldowns[name].group = "CDT";
+                    itemcooldowns[name].group = "CDT";
                 end
             end
-            if not db.itemcooldowns[name].disabled and db.itemcooldowns[name].start ~= start then
-                db.itemcooldowns[name].start = start;
+            if not itemcooldowns[name].disabled and itemcooldowns[name].start ~= start then
+                itemcooldowns[name].start = start;
                 if db.autogroup then
                     local index = floor(start * duration);
                     if not cooldowns[index] then
                         cooldowns[index] = new();
                         cooldowns[index].name = name;
-                        cooldowns[index].item = db.itemcooldowns[name];
+                        cooldowns[index].item = itemcooldowns[name];
                         cooldowns[index].duration = duration
                     end
 
                     if self.lastitem and strfind(link, self.lastitem, 1, true) then
                         cooldowns[index].name = name;
-                        cooldowns[index].item = db.itemcooldowns[name];
+                        cooldowns[index].item = itemcooldowns[name];
                     end
                 else
-                    self:SetUpBar(name, db.itemcooldowns[name], duration);
+                    self:SetUpBar(name, itemcooldowns[name], duration);
                 end
             end
         end
@@ -485,33 +489,33 @@ function cdt:BAG_UPDATE_COOLDOWN()
                 if db.itemgroups[name] then
                     name = db.itemgroups[name]
                 end
-                if not db.itemcooldowns[name] then
-                    db.itemcooldowns[name] = {
+                if not itemcooldowns[name] then
+                    itemcooldowns[name] = {
                         ["disabled"] = false,
                         ["icon"] = GetContainerItemInfo(bag, s);
                     }
                     if not db.groups.ItemCooldowns.disabled then
-                        db.itemcooldowns[name].group = "ItemCooldowns";
+                        itemcooldowns[name].group = "ItemCooldowns";
                     else
-                        db.itemcooldowns[name].group = "CDT";
+                        itemcooldowns[name].group = "CDT";
                     end
                 end
-                if not db.itemcooldowns[name].disabled and db.itemcooldowns[name].start ~= start then
-                    db.itemcooldowns[name].start = start;
+                if not itemcooldowns[name].disabled and itemcooldowns[name].start ~= start then
+                    itemcooldowns[name].start = start;
                     if db.autogroup then
                         local index = floor(start * duration);
                         if not cooldowns[index] then
                             cooldowns[index] = new();
                             cooldowns[index].name = name;
-                            cooldowns[index].item = db.itemcooldowns[name];
+                            cooldowns[index].item = itemcooldowns[name];
                             cooldowns[index].duration = duration;
                         end
                         if self.lastitem and strfind(link, self.lastitem, 1, true) then
                             cooldowns[index].name = name;
-                            cooldowns[index].item = db.itemcooldowns[name];
+                            cooldowns[index].item = itemcooldowns[name];
                         end
                     else
-                        self:SetUpBar(name, db.itemcooldowns[name], duration);
+                        self:SetUpBar(name, itemcooldowns[name], duration);
                     end
                 end
             end
@@ -534,22 +538,22 @@ end
 
 
 function cdt:ResetCooldowns()
-    self:KillAllBars();
-    for k, v in pairs(self.db.class.cooldowns) do
-        v.start = 0;
-    end
-    for k, v in pairs(self.db.char.petcooldowns) do
-        v.start = 0;
-    end
-    for k, v in pairs(db.itemcooldowns) do
-        v.start = 0;
-    end
-
-    self:SPELL_UPDATE_COOLDOWN();
-    self:BAG_UPDATE_COOLDOWN();
-    if UnitExists("pet") and HasPetUI() then
-        self:PET_BAR_UPDATE_COOLDOWN();
-    end
+		--clean up!
+	self:KillAllBars();
+	for k, v in pairs(cooldowns) do
+		v.start = 0;
+	end
+	for k, v in pairs(petcooldowns) do
+		v.start = 0;
+	end
+	for k, v in pairs(itemcooldowns) do
+		v.start = 0;
+	end
+	self:SPELL_UPDATE_COOLDOWN();
+	self:BAG_UPDATE_COOLDOWN();
+	if UnitExists("pet") and HasPetUI() then
+		self:PET_BAR_UPDATE_COOLDOWN();
+	end
 end
 
 local function checkRight(rtip)
@@ -567,7 +571,6 @@ function cdt:PopulateCooldowns()
     local last;
     local tooltip = self.tooltip;
     local GetSpellBookItemName = GetSpellBookItemName;
-    local cooldowns = self.db.class.cooldowns; 
     
     while cooldown do
         if cooldown ~= last then
@@ -607,10 +610,8 @@ function cdt:PopulateCooldowns()
         cooldown = GetSpellBookItemName(i, BOOKTYPE_SPELL);
     end
 
-    db.cooldowns = cooldowns;
-
     if UnitExists("pet") then
-        self:PopulatePetCooldowns();
+      --self:PopulatePetCooldowns();
     end
     self:SPELL_UPDATE_COOLDOWN();
     self:BAG_UPDATE_COOLDOWN();
@@ -630,7 +631,7 @@ end
 
 function cdt:PET_BAR_UPDATE_COOLDOWN()
     local start, duration, enable, name;
-    for k, v in pairs(self.db.char.petcooldowns) do
+    for k, v in pairs(petcooldowns) do
         name = GetSpellBookItemName(v.id, BOOKTYPE_PET);
         if not v.disabled and k == name then
             start, duration, enable = GetSpellCooldown(v.id, BOOKTYPE_PET);
@@ -857,61 +858,61 @@ do
     end
 end
 function cdt:SetUpBar(skillName, skillOptions, duration)
-    local group = db.groups[skillOptions.group];
-    if skillOptions.share and next(self.offsets) then
-        self:SendComm("New", skillName, skillOptions.icon, skillOptions.start, duration);
-    end
-    local r1, g1, b1, a1 = unpack(self.db.profile.barOptions.colors.colors1)
-    local r2, g2, b2, a2 = unpack(self.db.profile.barOptions.colors.colors2)
-    local colors;
+	local group = db.groups[skillOptions.group];
+	if skillOptions.share and next(self.offsets) then
+			self:SendComm("New", skillName, skillOptions.icon, skillOptions.start, duration);
+	end
+	local r1, g1, b1, a1 = unpack(self.db.profile.barOptions.colors.colors1)
+	local r2, g2, b2, a2 = unpack(self.db.profile.barOptions.colors.colors2)
+	local colors;
 
-    if skillOptions.colors then
-        colors = skillOptions.colors
-    elseif group and group.colors then
-        local gr1, gg1, gb1 = unpack(group.colors.colors1);
-        local gr2, gg2, gb2 = unpack(group.colors.colors2);
-        colors = {gr1, gg1, gb1, gr2, gg2, gb2};
-    else
-        colors = {r1, g1, b1, r2, g2, b2};  
-    end
+	if skillOptions.colors then
+			colors = skillOptions.colors
+	elseif group and group.colors then
+			local gr1, gg1, gb1 = unpack(group.colors.colors1);
+			local gr2, gg2, gb2 = unpack(group.colors.colors2);
+			colors = {gr1, gg1, gb1, gr2, gg2, gb2};
+	else
+			colors = {r1, g1, b1, r2, g2, b2};  
+	end
 
-    if self.bars[skillName] then
-        barlist[self.bars[skillName]]:Stop();
-    end
-    
-    if group.collapse or (group.collapse == nil and db.barOptions.collapse) then
-        local barname = "cdt-"..skillName;
-        if not barlist[barname] then
-            local barwidth = group.barwidth or db.barOptions.barwidth;
-            local barheight = group.barheight or db.barOptions.barheight;
-            local bartexture = SM:Fetch("statusbar", skillOptions.texture or group.texture or db.barOptions.texture);
-            barlist[barname] = candy:New(bartexture, barwidth, barheight);
-        end
-        local bar = barlist[barname];
-        --set bar attribute
-        bar:Set("group", skillOptions.group);
-        bar:Set("colors", colors);
-        bar:Set("barName", barname);
-        bar:Set("skillName", skillName or skillOptions.name);
-        bar:Set("icon", skillOptions.icon)
-        bar:Set("duration", duration + skillOptions.start - GetTime());
-        bar:SetScale(group.scale or db.barOptions.scale); 
-        bar:SetIcon(skillOptions.icon);
-        bar:SetDuration(duration + skillOptions.start - GetTime());
-        bar:SetTimeVisibility(true);
-        bar:SetLabel(skillOptions.name or skillName);
-        SetFade(bar, skillOptions.fade or group.fade or db.barOptions.scale)
-        SetGradient(bar, unpack(colors))
-        --add update func
-        bar:AddUpdateFunction(barUpdade);
-        bar:Start();
-        self.bars[skillName] = barname;
-    else
-       --create a new candy bar 
-       print("Group Timers bar, coming soon")
-    end
-    
-    rearrangeBars();
+	if self.bars[skillName] then
+			barlist[self.bars[skillName]]:Stop();
+	end
+	
+	if group.collapse or (group.collapse == nil and db.barOptions.collapse) then
+		local barname = "cdt-"..skillName;
+		if not barlist[barname] then
+			local barwidth = group.barwidth or db.barOptions.barwidth;
+			local barheight = group.barheight or db.barOptions.barheight;
+			local bartexture = SM:Fetch("statusbar", skillOptions.texture or group.texture or db.barOptions.texture);
+			barlist[barname] = candy:New(bartexture, barwidth, barheight);
+		end
+		local bar = barlist[barname];
+		--set bar attribute
+		bar:Set("group", skillOptions.group);
+		bar:Set("colors", colors);
+		bar:Set("barName", barname);
+		bar:Set("skillName", skillName or skillOptions.name);
+		bar:Set("icon", skillOptions.icon)
+		bar:Set("duration", duration + skillOptions.start - GetTime());
+		bar:SetScale(group.scale or db.barOptions.scale); 
+		bar:SetIcon(skillOptions.icon);
+		bar:SetDuration(duration + skillOptions.start - GetTime());
+		bar:SetTimeVisibility(true);
+		bar:SetLabel(skillOptions.name or skillName);
+		SetFade(bar, skillOptions.fade or group.fade or db.barOptions.scale)
+		SetGradient(bar, unpack(colors))
+		--add update func
+		bar:AddUpdateFunction(barUpdade);
+		bar:Start();
+		self.bars[skillName] = barname;
+	else
+		 --create a new candy bar 
+		 print("Group Timers bar, coming soon")
+	end
+	
+	rearrangeBars();
 end
 
 --create group frame
@@ -1044,7 +1045,7 @@ function cdt:CreateGroupHeader(group, info)
 end
 
 function cdt:FixGroups()
-    for k, v in pairs(self.db.class.cooldowns) do
+    --[[for k, v in pairs(self.db.class.cooldowns) do
         if not v.group or not db.groups[v.group] or db.groups[v.group].disabled then
             self:Print(k, L["moved from group"], v.group, L["to"], "CDT");
             v.group = "CDT";
@@ -1063,6 +1064,7 @@ function cdt:FixGroups()
             v.group = "CDT";
         end
     end
+		]]
 end
 
 function cdt:GetOffset(bar, group, groupName)

@@ -1,4 +1,4 @@
-## Interface: 40000
+﻿## Interface: 40000
 
 ## Title: Cooldown Timers 3 |cff7fff7f -Ace3-|r
 ## Notes: Shows Status Bars that you can drag around and group up for your cooldowns
@@ -21,4 +21,4 @@ locale\Locale-enUS.lua
 locale\Locale-zhCN.lua
 
 CooldownTimers3.lua
-options.lua
+#options.lua
